@@ -1,0 +1,28 @@
+{
+  "name": "betting-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend/externalapi",
+    "client_panels",
+    "operating-panel/apps/frontend",
+    "user-management/apps/frontend"
+  ],
+  "scripts": {
+    "postinstall": "npm run --workspaces --if-present db:generate",
+    "dev": "npm run dev:backend",
+    "dev:backend": "npm run -w backend/externalapi dev",
+    "dev:client-panels": "npm run -w client_panels dev",
+    "dev:operating": "npm run -w operating-panel/apps/frontend dev",
+    "dev:user-mgmt": "npm run -w user-management/apps/frontend dev",
+    "build": "npm run -w client_panels build && npm run -w operating-panel/apps/frontend build && npm run -w user-management/apps/frontend build",
+    "start": "echo \"Use workspace start scripts, e.g., npm run -w client_panels start\"",
+    "lint": "npm run -w backend/externalapi lint && npm run -w client_panels lint && npm run -w operating-panel/apps/frontend lint && npm run -w user-management/apps/frontend lint"
+  },
+  "engines": {
+    "node": ">=18.17.0",
+    "npm": ">=9.0.0"
+  },
+  "packageManager": "npm@10"
+}
+
