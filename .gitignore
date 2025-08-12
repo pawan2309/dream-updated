@@ -6,7 +6,5 @@
 **/.turbo/
 **/coverage/
 **/*.log
-**/.env
-**/.env.*
 **/.cache/
 **/.vscode/
