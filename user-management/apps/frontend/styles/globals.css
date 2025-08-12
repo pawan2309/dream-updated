@@ -1,0 +1,402 @@
+@tailwind base; @tailwind components; @tailwind utilities; 
+
+/* Prevent page refreshes and ensure smooth navigation */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Sticky footer styles */
+html, body, #__next, .wrapper {
+  height: 100%;
+  min-height: 100%;
+}
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.content-wrapper {
+  flex: 1 0 auto;
+}
+
+.main-footer {
+  flex-shrink: 0;
+  position: relative;
+  width: 100%;
+  bottom: 0;
+  background: #fff;
+  z-index: 10;
+} 
+
+/* Navigation styles for smooth transitions */
+.nav-link {
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.nav-link.active {
+  background-color: #007bff !important;
+  color: white !important;
+}
+
+/* Prevent default link behavior */
+a[href="#"] {
+  cursor: pointer;
+}
+
+/* Smooth sidebar transitions */
+.main-sidebar {
+  transition: transform 0.3s ease-in-out;
+}
+
+.sidebar-collapse .main-sidebar {
+  transform: translateX(-250px);
+}
+
+/* Fixed navbar styles - Override AdminLTE */
+.main-header,
+#fixed-navbar {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1030 !important;
+  background: white !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+/* Adjust content wrapper to account for fixed navbar */
+.content-wrapper {
+  margin-top: 60px;
+  min-height: calc(100vh - 60px);
+}
+
+/* Ensure smooth scrolling without jumping */
+html {
+  scroll-behavior: auto !important;
+  scroll-padding-top: 60px;
+}
+
+body {
+  overflow-x: hidden;
+  scroll-behavior: auto !important;
+}
+
+/* Prevent AdminLTE from resetting scroll */
+.wrapper {
+  scroll-behavior: auto !important;
+}
+
+/* Override any AdminLTE scroll behavior */
+* {
+  scroll-behavior: auto !important;
+}
+
+/* Prevent any automatic scrolling */
+html, body {
+  scroll-behavior: auto !important;
+  scroll-padding-top: 0 !important;
+}
+
+/* Disable smooth scrolling globally */
+* {
+  scroll-behavior: auto !important;
+}
+
+/* Force instant scroll behavior */
+html {
+  scroll-behavior: auto !important;
+}
+
+body {
+  scroll-behavior: auto !important;
+}
+
+/* Prevent AdminLTE from auto-scrolling */
+.wrapper,
+.content-wrapper,
+.main-content {
+  scroll-behavior: auto !important;
+}
+
+/* Force navbar to stay fixed regardless of AdminLTE */
+.main-header,
+.navbar.main-header,
+.main-header.navbar,
+.wrapper .main-header,
+.hold-transition .main-header,
+.sidebar-mini .main-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1030 !important;
+  transform: none !important;
+  transition: none !important;
+  background: white !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+/* Ensure content doesn't jump */
+.content-wrapper {
+  margin-top: 60px !important;
+  padding-top: 0 !important;
+  min-height: calc(100vh - 60px) !important;
+}
+
+/* Add spacing between navbar and page content */
+.content {
+  padding-top: 20px !important;
+}
+
+/* Prevent content from jumping when navbar is fixed */
+.wrapper {
+  padding-top: 0 !important;
+}
+
+/* Ensure proper spacing for fixed navbar */
+body {
+  padding-top: 0 !important;
+}
+
+/* Force navbar to always be visible */
+.main-header {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Prevent navbar from resetting position */
+.wrapper {
+  padding-top: 0;
+}
+
+/* Ensure sidebar stays in position */
+.main-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 1031;
+}
+
+/* Adjust content area for fixed sidebar */
+.content-wrapper {
+  margin-left: 250px;
+  transition: margin-left 0.3s ease-in-out;
+}
+
+/* Ensure sidebar is properly hidden when collapsed */
+.sidebar-collapse .main-sidebar {
+  transform: translateX(-250px);
+  visibility: hidden;
+}
+
+/* Ensure content takes full width when sidebar is collapsed */
+.sidebar-collapse .content-wrapper {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+/* Compact sidebar styles */
+.nav-sidebar .nav-item .nav-link {
+  padding: 8px 15px !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+}
+
+.nav-sidebar .nav-item .nav-link .nav-icon {
+  font-size: 12px !important;
+  margin-right: 8px !important;
+}
+
+.nav-sidebar .nav-item .nav-link p {
+  margin: 0 !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+}
+
+.nav-header {
+  padding: 8px 15px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #6c757d !important;
+  background-color: #f8f9fa !important;
+  border-bottom: 1px solid #dee2e6 !important;
+}
+
+/* Brand link styling to match navbar alignment */
+.brand-link {
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 15px !important;
+  height: 60px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+  text-decoration: none !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+}
+
+.brand-link:hover {
+  text-decoration: none !important;
+  color: white !important;
+}
+
+.brand-image {
+  margin-right: 10px !important;
+}
+
+/* Ensure sidebar navigation starts below brand */
+.sidebar {
+  margin-top: 0 !important;
+}
+
+/* Remove extra spacing from nav */
+.sidebar nav {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Make all tables horizontally scrollable on overflow */
+table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+/* Or, for more control, use a wrapper class: */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.user-action-grid .btn {
+  font-size: 1.1rem;
+}
+
+@media (max-width: 767px) {
+  .user-action-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 2px;
+    overflow-x: auto;
+    margin-top: 5px;
+    margin-bottom: 5px;
+  }
+  .user-action-grid .btn {
+    min-height: 20px;
+    font-size: 0.9rem;
+    padding: 3px 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .user-action-grid .btn-primary i,
+  .user-action-grid .btn-success i,
+  .user-action-grid .btn-danger i {
+    margin-left:10px;
+  }
+}
+
+@media (min-width: 711px) {
+  .table {
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+  .table th, .table td {
+    white-space: nowrap;
+  }
+  /* Example for 11 columns: adjust as needed for your tables */
+  .table th:nth-child(1), .table td:nth-child(1) { width: 4%; }   /* Checkbox */
+  .table th:nth-child(2), .table td:nth-child(2) { width: 5%; }   /* # */
+  .table th:nth-child(3), .table td:nth-child(3) { width: 10%; }  /* CODE */
+  .table th:nth-child(4), .table td:nth-child(4) { width: 12%; }  /* Name */
+  .table th:nth-child(5), .table td:nth-child(5) { width: 12%; }  /* Mobile */
+  .table th:nth-child(6), .table td:nth-child(6) { width: 10%; }  /* Password */
+  .table th:nth-child(7), .table td:nth-child(7) { width: 12%; }  /* Limit */
+  .table th:nth-child(8), .table td:nth-child(8) { width: 8%; }   /* Match */
+  .table th:nth-child(9), .table td:nth-child(9) { width: 8%; }   /* Session */
+  .table th:nth-child(10), .table td:nth-child(10) { width: 8%; } /* Share */
+  .table th:nth-child(11), .table td:nth-child(11) { width: 11%; }/* Status */
+}
+
+/* Reduce font size globally except sidebar */
+.content-wrapper, .main-header, .main-footer, .content, .container-fluid, .card, .table, .login-page, .login-box, .login-logo, .card-body, .dropdown-menu, .dropdown-item, .user-action-grid, .user-action-grid .btn, .breadcrumb, .form-control, .input-group, .input-group-text, .modal-content, .modal-header, .modal-body, .modal-footer, .small-box, .small-box-footer, .inner, .icon, .brand-text, .profile-user, .profile-username, .profile-user-info, .profile-user-info-list, .profile-user-info-list li, .profile-user-info-list span, .profile-user-info-list strong, .profile-user-info-list b, .profile-user-info-list i, .profile-user-info-list .badge, .profile-user-info-list .btn, .profile-user-info-list .form-control, .profile-user-info-list .input-group, .profile-user-info-list .input-group-text, .profile-user-info-list .modal-content, .profile-user-info-list .modal-header, .profile-user-info-list .modal-body, .profile-user-info-list .modal-footer {
+  font-size: 13px !important;
+}
+
+/* Exclude sidebar and its children from font-size reduction */
+.main-sidebar, .nav-sidebar, .sidebar, .nav-header, .brand-link, .main-sidebar *, .nav-sidebar *, .sidebar *, .nav-header *, .brand-link * {
+  font-size: initial !important;
+}
+
+h1 {
+  margin-bottom: 10px !important;
+}
+
+.content-header {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+.content {
+  padding-top: 10px !important;
+}
+
+.custom-dropdown-menu {
+  background: #fff;
+  border: 1.5px solid #222;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.18), 0 1.5px 4px rgba(0,0,0,0.12);
+  min-width: 160px;
+  padding: 6px 0;
+  z-index: 3000;
+}
+
+.custom-dropdown-menu .dropdown-item {
+  color: #222;
+  font-weight: 500;
+  font-size: 1.05rem;
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.custom-dropdown-menu .dropdown-item:hover,
+.custom-dropdown-menu .dropdown-item:focus {
+  background: #222;
+  color: #fff;
+  outline: none;
+}
+
+.table {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: auto;
+}
+
+.table-responsive {
+  width: 100% !important;
+  overflow-x: auto;
+}
+
+.card-body {
+  width: 100%;
+  padding: 1rem;
+}
+
+/* Add 5px gap between adjacent buttons */
+.btn + .btn {
+  margin-left: 5px;
+}

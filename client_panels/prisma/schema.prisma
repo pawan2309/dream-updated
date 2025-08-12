@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(uuid())
+  username            String               @unique
+  password            String
+  role                Role
+  parentId            String?
+  balance             Float                @default(0)
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  name                String?
+  code                String?
+  contactno           String?
+  mobileshare         Float                @default(100)
+  reference           String?
+  creditLimit         Float                @default(0)
+  exposure            Float                @default(0)
+  casinoStatus        Boolean?
+  Bet                 Bet[]
+  Ledger              Ledger[]
+  LoginSession        LoginSession[]
+  ProfitDistribution  ProfitDistribution[]
+  parent              User?                @relation("UserHierarchy", fields: [parentId], references: [id])
+  children            User[]               @relation("UserHierarchy")
+  UserCommissionShare UserCommissionShare?
+}
+
+model Bet {
+  id                 String               @id
+  userId             String
+  matchId            String
+  odds               Float
+  stake              Float
+  potentialWin       Float
+  status             BetStatus            @default(PENDING)
+  createdAt          DateTime             @default(now())
+  Match              Match                @relation(fields: [matchId], references: [id])
+  User               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ProfitDistribution ProfitDistribution[]
+}
+
+model Ledger {
+  id              String     @id
+  userId          String
+  collection      String?
+  debit           Float      @default(0)
+  credit          Float      @default(0)
+  balanceAfter    Float
+  type            LedgerType
+  remark          String?
+  createdAt       DateTime   @default(now())
+  referenceId     String?
+  transactionType String?
+  matchId         String?
+  sourceUserId    String?
+  User            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model LoginSession {
+  id              String    @id
+  userId          String
+  loginAt         DateTime  @default(now())
+  logoutAt        DateTime?
+  ipAddress       String?
+  userAgent       String?
+  deviceType      String?
+  location        String?
+  sessionDuration Int?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  User            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@index([loginAt])
+  @@index([userId])
+}
+
+model Match {
+  id         String      @id
+  title      String
+  externalId String      @unique
+  status     MatchStatus @default(UPCOMING)
+  createdAt  DateTime    @default(now())
+  Bet        Bet[]
+}
+
+model ProfitDistribution {
+  id           String   @id
+  betId        String
+  userId       String
+  profitShare  Float
+  amountEarned Float
+  createdAt    DateTime @default(now())
+  Bet          Bet      @relation(fields: [betId], references: [id])
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserCommissionShare {
+  id                      String   @id
+  userId                  String   @unique
+  share                   Float    @default(0)
+  cshare                  Float    @default(0)
+  icshare                 Float    @default(0)
+  casinocommission        Float    @default(0)
+  matchcommission         Float    @default(0)
+  sessioncommission       Float    @default(0)
+  sessionCommission       Float?
+  session_commission_type String   @default("No Comm")
+  commissionType          String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime
+  available_share_percent Float    @default(0)
+  User                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  ADMIN
+  SUPER_ADMIN
+  SUB_OWNER
+  SUB
+  MASTER
+  SUPER_AGENT
+  AGENT
+  USER
+  OWNER
+}
+
+enum BetStatus {
+  PENDING
+  WON
+  LOST
+}
+
+enum LedgerType {
+  DEPOSIT
+  WITHDRAWAL
+  WIN
+  LOSS
+  ADJUSTMENT
+  LIMIT_UPDATE
+  PNL_CREDIT
+  PNL_DEBIT
+  SETTLEMENT
+}
+
+enum MatchStatus {
+  UPCOMING
+  LIVE
+  CLOSED
+}
