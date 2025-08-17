@@ -1,87 +1,180 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+import { 
+  assignUserWithShare, 
+  editUserShare, 
+  calculateUserShareInfo,
+  getUserChildrenWithShares,
+  validateShareAssignment,
+  getUserHierarchyTree,
+  updateUserCommissions,
+  ShareAssignmentRequest,
+  ShareUpdateRequest
+} from '../../../lib/services/shareCommissionService';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, message: 'Method not allowed' });
+  if (req.method === 'POST') {
+    // Handle share assignment
+    try {
+      const request: ShareAssignmentRequest = req.body;
+      
+      const result = await assignUserWithShare(request);
+      
+      if (result.success) {
+        return res.status(200).json({
+          success: true,
+          user: result.user,
+          parentShareInfo: result.parentShareInfo,
+          message: 'Share assigned successfully'
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('Error in share assignment:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
   }
 
-  try {
-    // Get token from cookie using Next.js built-in parser
-    const token = req.cookies.betx_session;
-    
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'No authentication token' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const adminUserId = decoded.userId || decoded.id;
-    
-    if (!decoded || !adminUserId) {
-      return res.status(401).json({ success: false, message: 'Invalid session' });
-    }
-
-    const { userId, commissionRate } = req.body;
-
-    // Validation
-    if (!userId || commissionRate === undefined) {
-      return res.status(400).json({ success: false, message: 'User ID and commission rate are required' });
-    }
-
-    const parsedRate = Number(commissionRate);
-    if (isNaN(parsedRate) || parsedRate < 0 || parsedRate > 100) {
-      return res.status(400).json({ success: false, message: 'Commission rate must be between 0 and 100' });
-    }
-
-    // Get user
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    // Update user's commission rate
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: { 
-        share: parsedRate,
-        updatedAt: new Date()
+  if (req.method === 'PUT') {
+    // Handle share editing
+    try {
+      const request: ShareUpdateRequest = req.body;
+      
+      const result = await editUserShare(request);
+      
+      if (result.success) {
+        return res.status(200).json({
+          success: true,
+          user: result.user,
+          parentShareInfo: result.parentShareInfo,
+          message: 'Share updated successfully'
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: result.error
+        });
       }
-    });
-
-    // Create ledger entry for commission change
-    const ledgerData = {
-      userId: userId,
-      debit: 0,
-      credit: 0,
-      balanceAfter: user.creditLimit || 0,
-      type: 'ADJUSTMENT' as const,
-      remark: `Commission rate updated to ${parsedRate}% by admin`,
-      referenceId: `COMMISSION_UPDATE_${Date.now()}`,
-      transactionType: 'COMMISSION_UPDATE'
-    };
-
-    await prisma.ledger.create({ data: ledgerData });
-
-    return res.status(200).json({
-      success: true,
-      message: 'Commission rate updated successfully',
-      data: {
-        userId: userId,
-        oldRate: user.share || 0,
-        newRate: updatedUser.share,
-        updatedAt: updatedUser.updatedAt
-      }
-    });
-
-  } catch (error) {
-    console.error('Error in share-commission:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    } catch (error) {
+      console.error('Error in share editing:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
   }
+
+  if (req.method === 'GET') {
+    try {
+      const { userId, action } = req.query;
+
+      if (!userId || typeof userId !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'User ID is required'
+        });
+      }
+
+      switch (action) {
+        case 'share-info':
+          // Get user's share information
+          const shareInfo = await calculateUserShareInfo(userId);
+          return res.status(200).json({
+            success: true,
+            shareInfo
+          });
+
+        case 'children-shares':
+          // Get user's children with their share information
+          const childrenWithShares = await getUserChildrenWithShares(userId);
+          return res.status(200).json({
+            success: true,
+            children: childrenWithShares
+          });
+
+        case 'hierarchy-tree':
+          // Get complete hierarchy tree
+          const hierarchyTree = await getUserHierarchyTree(userId);
+          return res.status(200).json({
+            success: true,
+            hierarchy: hierarchyTree
+          });
+
+        case 'validate-assignment':
+          // Validate share assignment
+          const { requestedShare } = req.query;
+          if (!requestedShare || typeof requestedShare !== 'string') {
+            return res.status(400).json({
+              success: false,
+              error: 'Requested share is required'
+            });
+          }
+          
+          const validation = await validateShareAssignment(userId, parseFloat(requestedShare));
+          return res.status(200).json({
+            success: true,
+            validation
+          });
+
+        default:
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid action specified'
+          });
+      }
+    } catch (error) {
+      console.error('Error in share commission GET:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+
+  if (req.method === 'PATCH') {
+    // Handle commission updates
+    try {
+      const { userId } = req.query;
+      const commissions = req.body;
+
+      if (!userId || typeof userId !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'User ID is required'
+        });
+      }
+
+      const result = await updateUserCommissions(userId, commissions);
+      
+      if (result.success) {
+        return res.status(200).json({
+          success: true,
+          user: result.user,
+          message: 'Commissions updated successfully'
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('Error in commission update:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+
+  return res.status(405).json({
+    success: false,
+    error: 'Method not allowed'
+  });
 } 

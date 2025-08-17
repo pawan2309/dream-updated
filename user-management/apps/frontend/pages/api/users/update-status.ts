@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../lib/prisma';
 import jwt from 'jsonwebtoken';
+import { parse } from 'cookie';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'L9vY7z!pQkR#eA1dT3u*Xj5@FbNmC2Ws';
 const SESSION_COOKIE = 'betx_session';
@@ -39,30 +40,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Debug: Log all headers and cookies
-    console.log('🔍 Update-status API called');
-    console.log('🔍 Request headers:', Object.keys(req.headers));
-    console.log('🔍 Cookie header:', req.headers.cookie);
-    console.log('🔍 All cookies:', req.cookies);
-    
-    // Verify session - use Next.js built-in cookie parser like session API
-    const token = req.cookies[SESSION_COOKIE];
-    console.log('🔍 Session cookie name:', SESSION_COOKIE);
-    console.log('🔍 Token found:', !!token, 'Length:', token?.length || 0);
+    // Verify session
+    const cookies = parse(req.headers.cookie || '');
+    const token = cookies[SESSION_COOKIE];
     
     if (!token) {
-      console.log('❌ No token found in cookies');
-      return res.status(401).json({ success: false, message: 'Unauthorized - No token found' });
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    console.log('🔍 Verifying JWT token...');
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    console.log('🔍 JWT decoded:', decoded);
-    const userId = decoded.user?.id || decoded.userId || decoded.id;
-    console.log('🔍 User ID from token:', userId);
+    const userId = decoded.user?.id;
     
     if (!decoded || !userId) {
-      console.log('❌ Invalid token or no user ID');
       return res.status(401).json({ success: false, message: 'Invalid session' });
     }
 

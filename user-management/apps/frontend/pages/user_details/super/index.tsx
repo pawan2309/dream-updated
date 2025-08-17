@@ -312,42 +312,38 @@ export default function SuperPage() {
     }
 
     try {
-      console.log('📡 Making API call to /api/users/update-status');
-      const requestBody = {
-        userIds: usersToUpdate,
-        isActive: isActive,
-        role: 'SUPER'
-      };
-      console.log('📦 Request body:', requestBody);
-      
       const res = await fetch('/api/users/update-status', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          userIds: usersToUpdate,
+          isActive: isActive,
+          role: 'SUPER_AGENT'
+        }),
       });
 
-      console.log('📥 Response received:', res.status, res.statusText);
       const data = await res.json();
-      console.log('📄 Response data:', data);
-      
       if (data.success) {
-        console.log('✅ Status update successful');
-        alert(data.message || `Successfully ${isActive ? 'activated' : 'deactivated'} users`);
-        setSupers(prev => prev.map(user => usersToUpdate.includes(user.id) ? { ...user, isActive: isActive } : user));
-        if (!userIds) { setSelectedUsers([]); }
-        refreshData();
+        // Update local state
+        setSupers(prev => prev.map(user => 
+          usersToUpdate.includes(user.id) ? { ...user, isActive: isActive } : user
+        ));
+        if (!userIds) {
+          setSelectedUsers([]);
+        }
       } else {
-        console.log('❌ Status update failed:', data.message);
-        alert('Failed to update status: ' + (data.message || 'Unknown error'));
+        console.error('Failed to update status:', data.message);
       }
     } catch (err) {
-      console.log('❌ Network error:', err);
-      alert('Network error while updating status');
+      console.error('Failed to update status:', err);
     } finally {
-      if (isActive) { setActivating(false); } else { setDeactivating(false); }
+      if (isActive) {
+        setActivating(false);
+      } else {
+        setDeactivating(false);
+      }
     }
   };
 
@@ -386,48 +382,31 @@ export default function SuperPage() {
     setLimitLoading(true);
     setLimitError('');
     try {
-      console.log('📡 Making API call to /api/users/update-limits');
-      const requestBody = {
-        userId: limitModal.user.id,
-        amount: Number(limitAmount),
-        type: limitModal.type, // 'deposit' or 'withdrawal'
-        remark: `Credit limit ${limitModal.type} by super`,
-      };
-      console.log('📦 Request body:', requestBody);
-      
-      const res = await fetch('/api/users/update-limits', {
+      const res = await fetch('/api/users/transfer-limit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          parentId: limitModal.user.parentId,
+          childId: limitModal.user.id,
+          amount: Number(limitAmount),
+          type: limitModal.type, // 'deposit' or 'withdrawal'
+          remark: '',
+        }),
       });
-      
-      console.log('📥 Response received:', res.status, res.statusText);
       const data = await res.json();
-      console.log('📄 Response data:', data);
-      
-      if (data.success) {
-        console.log('✅ Limit update successful');
-        alert(`Successfully ${limitModal.type}ed ${limitAmount} credits for ${limitModal.user.name}`);
-        handleCloseLimitModal();
+      if (res.ok && data.success) {
+        setLimitModal(null);
+        setLimitAmount('');
+        setLimitError('');
         refreshData();
       } else {
-        console.log('❌ Limit update failed:', data.message);
         setLimitError(data.message || 'Failed to update limit');
       }
     } catch (err) {
-      console.log('❌ Network error:', err);
-      setLimitError('Network error');
+      setLimitError('Failed to update limit');
     } finally {
       setLimitLoading(false);
     }
-  };
-
-  const handleCloseLimitModal = () => {
-    setLimitModal(null);
-    setLimitAmount('');
-    setLimitError('');
-    setParentInfo(null);
   };
 
   return (
@@ -687,7 +666,7 @@ export default function SuperPage() {
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">{limitModal.type === 'deposit' ? 'Deposit' : 'Withdraw'} Limit for {limitModal.user.code} {limitModal.user.name}</h5>
-                <button type="button" className="close" onClick={handleCloseLimitModal}>&times;</button>
+                <button type="button" className="close" onClick={() => setLimitModal(null)}>&times;</button>
               </div>
               <div className="modal-body">
                 <div className="mb-2">
@@ -705,7 +684,7 @@ export default function SuperPage() {
                 </div>
               </div>
               <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={handleCloseLimitModal} disabled={limitLoading}>Cancel</button>
+                <button className="btn btn-secondary" onClick={() => setLimitModal(null)} disabled={limitLoading}>Cancel</button>
                 <button className="btn btn-primary" onClick={handleLimitSubmit} disabled={limitLoading || !limitModal?.user?.parentId}>
                   {limitLoading ? 'Processing...' : (limitModal.type === 'deposit' ? 'Deposit' : 'Withdraw')}
                 </button>

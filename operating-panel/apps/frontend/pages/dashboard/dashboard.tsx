@@ -1349,6 +1349,7 @@ export default function Dashboard() {
                               <span 
                                 className="cursor-pointer text-blue-600 flex items-center text-xs hover:underline"
                                 onClick={() => router.push(`/matchEdit/${match.bmarketId || match.id}`)}
+                                title="Click to edit match"
                               >
                                 {match.matchName}
                                 {match.isLive && selectedMatchType === 'INPLAY' && (
@@ -1375,9 +1376,10 @@ export default function Dashboard() {
                               <div className="flex justify-center items-center space-x-1">
                                 <button 
                                   className="text-white font-bold py-1 px-1.5 rounded text-xs bg-dark-blue hover:bg-gray-400 transition-colors"
-                                  onClick={() => handleAction('match', match.id)}
+                                  onClick={() => router.push(`/matchEdit/${match.bmarketId || match.id}`)}
+                                  title="Edit Match"
                                 >
-                                  Decision Modal
+                                  Edit Match
                                 </button>
                                 <button 
                                   type="button" 

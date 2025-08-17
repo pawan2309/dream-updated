@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
+import { parse } from 'cookie';
 import { prisma } from '../../../lib/prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'L9vY7z!pQkR#eA1dT3u*Xj5@FbNmC2Ws';
@@ -11,11 +12,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Get token from cookie using Next.js built-in parser
-    const token = req.cookies.betx_session;
-    
+    const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
+    const token = cookies[SESSION_COOKIE];
+
     if (!token) {
-      return res.status(401).json({ success: false, message: 'No authentication token' });
+      return res.status(401).json({ success: false, message: 'No session token' });
     }
 
     const payload = jwt.verify(token, JWT_SECRET) as any;

@@ -292,51 +292,7 @@ const MasterPage = () => {
     }
   };
 
-  const handleLimitSubmit = async () => {
-    if (!limitModal || !limitAmount || isNaN(Number(limitAmount)) || Number(limitAmount) <= 0) {
-      setLimitError('Please enter a valid amount');
-      return;
-    }
-    setLimitLoading(true);
-    setLimitError('');
-    try {
-      console.log('📡 Making API call to /api/users/update-limits');
-      const requestBody = {
-        userId: limitModal.user.id,
-        amount: Number(limitAmount),
-        type: limitModal.type, // 'deposit' or 'withdrawal'
-        remark: `Credit limit ${limitModal.type} by master`,
-      };
-      console.log('📦 Request body:', requestBody);
-      
-      const res = await fetch('/api/users/update-limits', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(requestBody),
-      });
-      
-      console.log('📥 Response received:', res.status, res.statusText);
-      const data = await res.json();
-      console.log('📄 Response data:', data);
-      
-      if (data.success) {
-        console.log('✅ Limit update successful');
-        alert(`Successfully ${limitModal.type}ed ${limitAmount} credits for ${limitModal.user.name}`);
-        handleCloseLimitModal();
-        refreshData();
-      } else {
-        console.log('❌ Limit update failed:', data.message);
-        setLimitError(data.message || 'Failed to update limit');
-      }
-    } catch (err) {
-      console.log('❌ Network error:', err);
-      setLimitError('Network error');
-    } finally {
-      setLimitLoading(false);
-    }
-  };
-
+  // Handle status update
   const handleStatusUpdate = async (isActive: boolean, userIds?: string[]) => {
     const usersToUpdate = userIds || selectedUsers;
     
@@ -352,42 +308,38 @@ const MasterPage = () => {
     }
 
     try {
-      console.log('📡 Making API call to /api/users/update-status');
-      const requestBody = {
-        userIds: usersToUpdate,
-        isActive: isActive,
-        role: 'MASTER'
-      };
-      console.log('📦 Request body:', requestBody);
-      
       const res = await fetch('/api/users/update-status', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          userIds: usersToUpdate,
+          isActive: isActive,
+          role: 'MASTER'
+        }),
       });
 
-      console.log('📥 Response received:', res.status, res.statusText);
       const data = await res.json();
-      console.log('📄 Response data:', data);
-      
       if (data.success) {
-        console.log('✅ Status update successful');
-        alert(data.message || `Successfully ${isActive ? 'activated' : 'deactivated'} users`);
-        setMasters(prev => prev.map(user => usersToUpdate.includes(user.id) ? { ...user, isActive: isActive } : user));
-        if (!userIds) { setSelectedUsers([]); }
-        refreshData();
+        // Update local state
+        setMasters(prev => prev.map(user => 
+          usersToUpdate.includes(user.id) ? { ...user, isActive: isActive } : user
+        ));
+        if (!userIds) {
+          setSelectedUsers([]);
+        }
       } else {
-        console.log('❌ Status update failed:', data.message);
-        alert('Failed to update status: ' + (data.message || 'Unknown error'));
+        console.error('Failed to update status:', data.message);
       }
     } catch (err) {
-      console.log('❌ Network error:', err);
-      alert('Network error while updating status');
+      console.error('Failed to update status:', err);
     } finally {
-      if (isActive) { setActivating(false); } else { setDeactivating(false); }
+      if (isActive) {
+        setActivating(false);
+      } else {
+        setDeactivating(false);
+      }
     }
   };
 
@@ -423,6 +375,38 @@ const MasterPage = () => {
     setLimitAmount('');
     setLimitError('');
     setParentInfo(null);
+  }
+  async function handleLimitSubmit() {
+    if (!limitModal || !limitAmount || isNaN(Number(limitAmount)) || Number(limitAmount) <= 0) {
+      setLimitError('Please enter a valid amount');
+      return;
+    }
+    setLimitLoading(true);
+    setLimitError('');
+    try {
+      const res = await fetch('/api/users/transfer-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parentId: limitModal.user.parentId,
+          childId: limitModal.user.id,
+          amount: Number(limitAmount),
+          type: limitModal.type, // 'deposit' or 'withdrawal'
+          remark: '',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        handleCloseLimitModal();
+        refreshData();
+      } else {
+        setLimitError(data.message || 'Failed to update limit');
+      }
+    } catch (err) {
+      setLimitError('Network error');
+    } finally {
+      setLimitLoading(false);
+    }
   }
 
   return (
