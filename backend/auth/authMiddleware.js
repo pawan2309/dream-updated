@@ -21,15 +21,27 @@ function parseBearerToken(headerValue) {
 
 function verifyJwtToken(req, res, next) {
   try {
+    console.log('🔍 [JWT] Authorization header:', req.headers["authorization"]?.substring(0, 50) + '...');
+    
     const token = parseBearerToken(req.headers["authorization"]); 
     if (!token) {
+      console.log('❌ [JWT] No token found in Authorization header');
       return res.status(401).json({ message: "Missing or invalid Authorization header" });
     }
 
+    console.log('🔍 [JWT] Token extracted:', token.substring(0, 50) + '...');
+    
     const payload = jwt.verify(token, getJwtSecret());
+    console.log('✅ [JWT] Token verified successfully, payload:', {
+      sub: payload.sub,
+      role: payload.role,
+      subdomain: payload.subdomain
+    });
+    
     req.user = payload; // { sub, role, subdomain, iat, exp }
     return next();
-  } catch (_err) {
+  } catch (error) {
+    console.error('❌ [JWT] Token verification failed:', error.message);
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 }

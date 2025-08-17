@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../lib/prisma';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { parse } from 'cookie';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'L9vY7z!pQkR#eA1dT3u*Xj5@FbNmC2Ws';
 const SESSION_COOKIE = 'betx_session';
@@ -12,13 +12,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Get user from session
-    const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
-    const token = cookies[SESSION_COOKIE];
-
+    // Get token from cookie using Next.js built-in parser
+    const token = req.cookies.betx_session;
+    
     if (!token) {
-      console.error('No session token found in cookies:', cookies);
-      return res.status(401).json({ success: false, message: 'Not authenticated' });
+      return res.status(401).json({ success: false, message: 'No authentication token' });
     }
 
     let payload, sessionUserId;

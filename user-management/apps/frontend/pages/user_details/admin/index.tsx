@@ -225,6 +225,7 @@ export default function AdminMasterPage() {
   }, [openDropdownId, dropdownAnchor]);
 
   const handleDropdownAction = (action: string, user: any, e?: React.MouseEvent) => {
+    console.log('🔍 handleDropdownAction called with:', { action, userId: user?.id, userName: user?.name });
     handleDropdownClose();
     if (e) {
       e.preventDefault();
@@ -232,61 +233,96 @@ export default function AdminMasterPage() {
     }
     switch (action) {
       case 'edit':
+        console.log('🔍 Edit action triggered for user:', user.id);
         window.location.href = `/user_details/admin/${user.id}/edit`;
         break;
       case 'active':
+        console.log('🔍 Activate action triggered for user:', user.id);
         handleStatusUpdate(true, [user.id]);
         break;
       case 'inactive':
+        console.log('🔍 Deactivate action triggered for user:', user.id);
         handleStatusUpdate(false, [user.id]);
         break;
       case 'statement':
+        console.log('🔍 Statement action triggered for user:', user.id);
         window.location.href = `/user_details/statement?userId=${user.id}`;
         break;
       case 'deposit':
+        console.log('🔍 Deposit action triggered for user:', user.id);
         handleOpenLimitModal(user, 'deposit');
         break;
       case 'withdrawal':
+        console.log('🔍 Withdrawal action triggered for user:', user.id);
         handleOpenLimitModal(user, 'withdrawal');
         break;
       case 'downline':
+        console.log('🔍 Downline action triggered for user:', user.id);
         window.location.href = `/user_details/downline?userId=${user.id}`;
         break;
       case 'changePassword':
+        console.log('🔍 Change Password action triggered for user:', user.id);
         window.location.href = `/changePassword?userId=${user.id}&returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
         break;
       case 'sendSMS':
+        console.log('🔍 Send SMS action triggered for user:', user.id);
         alert('Send Login Details (SMS)');
         break;
       case 'sendDevice':
+        console.log('🔍 Send Device action triggered for user:', user.id);
         alert('Send Login Details (Device)');
         break;
       default:
+        console.log('🔍 Unknown action:', action);
         break;
     }
   };
 
   const handleStatusUpdate = async (isActive: boolean, userIds?: string[]) => {
+    console.log('🔍 handleStatusUpdate called with:', { isActive, userIds, selectedUsers });
+    
     const usersToUpdate = userIds || selectedUsers;
+    console.log('🔍 usersToUpdate:', usersToUpdate);
+    
     if (usersToUpdate.length === 0) {
+      console.log('❌ No users selected');
       alert('Please select at least one user');
       return;
     }
+    
+    console.log('🚀 Starting status update for users:', usersToUpdate);
     if (isActive) { setActivating(true); } else { setDeactivating(true); }
+    
     try {
+      console.log('📡 Making API call to /api/users/update-status');
+      const requestBody = { userIds: usersToUpdate, isActive: isActive, role: 'ADMIN' };
+      console.log('📦 Request body:', requestBody);
+      
       const res = await fetch('/api/users/update-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: usersToUpdate, isActive: isActive, role: 'ADMIN' }),
+        credentials: 'include',
+        body: JSON.stringify(requestBody),
       });
+      
+      console.log('📥 Response received:', res.status, res.statusText);
       const data = await res.json();
+      console.log('📄 Response data:', data);
+      
       if (data.success) {
+        console.log('✅ Status update successful');
+        alert(data.message || `Successfully ${isActive ? 'activated' : 'deactivated'} users`);
         setAdmins(prev => prev.map(user => usersToUpdate.includes(user.id) ? { ...user, isActive: isActive } : user));
         if (!userIds) { setSelectedUsers([]); }
+        refreshData();
       } else {
+        console.log('❌ Status update failed:', data.message);
+        alert('Failed to update status: ' + (data.message || 'Unknown error'));
         console.error('Failed to update status:', data.message);
       }
     } catch (err) {
+      console.log('❌ Network error:', err);
+      alert('Network error while updating status');
       console.error('Failed to update status:', err);
     } finally {
       if (isActive) { setActivating(false); } else { setDeactivating(false); }
@@ -332,25 +368,37 @@ export default function AdminMasterPage() {
     setLimitLoading(true);
     setLimitError('');
     try {
-      const res = await fetch('/api/users/transfer-limit', {
+      console.log('📡 Making API call to /api/users/update-limits');
+      const requestBody = {
+        userId: limitModal.user.id,
+        amount: Number(limitAmount),
+        type: limitModal.type, // 'deposit' or 'withdrawal'
+        remark: `Credit limit ${limitModal.type} by admin`,
+      };
+      console.log('📦 Request body:', requestBody);
+      
+      const res = await fetch('/api/users/update-limits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parentId: limitModal.user.parentId,
-          childId: limitModal.user.id,
-          amount: Number(limitAmount),
-          type: limitModal.type, // 'deposit' or 'withdrawal'
-          remark: '',
-        }),
+        credentials: 'include',
+        body: JSON.stringify(requestBody),
       });
+      
+      console.log('📥 Response received:', res.status, res.statusText);
       const data = await res.json();
+      console.log('📄 Response data:', data);
+      
       if (res.ok && data.success) {
+        console.log('✅ Limit update successful');
+        alert(`Successfully ${limitModal.type}ed ${limitAmount} credits for ${limitModal.user.name}`);
         handleCloseLimitModal();
         refreshData();
       } else {
+        console.log('❌ Limit update failed:', data.message);
         setLimitError(data.message || 'Failed to update limit');
       }
     } catch (err) {
+      console.log('❌ Network error:', err);
       setLimitError('Network error');
     } finally {
       setLimitLoading(false);
@@ -399,7 +447,12 @@ export default function AdminMasterPage() {
                           Limit Update <i className="fa fa-coins"></i>
                         </Link>
 
-                        <button className="btn btn-danger" type="button" onClick={() => handleStatusUpdate(false)} disabled={activating || deactivating || selectedUsers.length === 0}>
+                        <button className="btn btn-danger" type="button" onClick={() => {
+                          console.log('🔍 DeActivate button clicked');
+                          console.log('🔍 selectedUsers:', selectedUsers);
+                          console.log('🔍 selectedUsers.length:', selectedUsers.length);
+                          handleStatusUpdate(false);
+                        }} disabled={activating || deactivating || selectedUsers.length === 0}>
                           {deactivating ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fa fa-ban"></i> DeActivate</>}
                         </button>
                       </div>

@@ -95,32 +95,41 @@ export default function DeadUsersPage() {
     }
   };
 
-  const handleActivate = async (userIds: string[]) => {
+  const handleActivate = async (userId: string) => {
     try {
-      setActivating(true);
+      console.log('📡 Making API call to /api/users/update-status');
+      const requestBody = {
+        userIds: [userId],
+        isActive: true,
+        role: 'DEAD_USER_ACTIVATION'
+      };
+      console.log('📦 Request body:', requestBody);
+      
       const res = await fetch('/api/users/update-status', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userIds: userIds,
-          isActive: true,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(requestBody),
       });
-
-      if (!res.ok) {
-        throw new Error('Failed to activate users');
+      
+      console.log('📥 Response received:', res.status, res.statusText);
+      const data = await res.json();
+      console.log('📄 Response data:', data);
+      
+      if (data.success) {
+        console.log('✅ User activation successful');
+        alert('User activated successfully');
+        // Remove user from dead users list
+        setUsers(prev => prev.filter(user => user.id !== userId));
+        // Refresh the list
+        fetchDeadUsers();
+      } else {
+        console.log('❌ User activation failed:', data.message);
+        alert('Failed to activate user: ' + (data.message || 'Unknown error'));
       }
-
-      const result = await res.json();
-      alert(result.message);
-      fetchDeadUsers(); // Refresh the list
-      setSelectedUsers([]); // Clear selection
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to activate users');
-    } finally {
-      setActivating(false);
+      console.log('❌ Network error:', err);
+      alert('Network error while activating user');
     }
   };
 
@@ -129,12 +138,12 @@ export default function DeadUsersPage() {
       alert('Please select users to activate');
       return;
     }
-    handleActivate(selectedUsers);
+    selectedUsers.forEach(userId => handleActivate(userId));
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedUsers(filteredUsers.map(user => user.id));
+      setSelectedUsers(users.map(user => user.id));
     } else {
       setSelectedUsers([]);
     }
@@ -188,7 +197,7 @@ export default function DeadUsersPage() {
     }
     switch (action) {
       case 'activate':
-        handleActivate([user.id]);
+        handleActivate(user.id);
         break;
       case 'statement':
         // Navigate to statement page

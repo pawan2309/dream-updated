@@ -77,31 +77,41 @@ export default function ClientLimitUpdate() {
   };
 
   const handleLimitUpdate = async (userId: string, amount: number, type: 'Add' | 'Minus') => {
+    if (updating === userId) return;
+    
     setUpdating(userId);
     try {
-      const response = await fetch('/api/users/update-limit', {
+      console.log('📡 Making API call to /api/users/limit-update');
+      const requestBody = {
+        userIds: [userId],
+        amount: amount,
+        type: type,
+        remark: `Bulk ${type} by client manager`
+      };
+      console.log('📦 Request body:', requestBody);
+      
+      const res = await fetch('/api/users/limit-update', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          amount,
-          type,
-          role: 'USER'
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(requestBody),
       });
-
-      if (response.ok) {
-        alert(`${type === 'Add' ? 'Added' : 'Subtracted'} successfully!`);
+      
+      console.log('📥 Response received:', res.status, res.statusText);
+      const data = await res.json();
+      console.log('📄 Response data:', data);
+      
+      if (data.success) {
+        console.log('✅ Limit update successful');
+        alert(`Successfully ${type === 'Add' ? 'added' : 'subtracted'} ${amount} credits for user`);
         fetchUsers(); // Refresh the list
       } else {
-        const error = await response.json();
-        alert(`Error: ${error.message}`);
+        console.log('❌ Limit update failed:', data.message);
+        alert('Failed to update limit: ' + (data.message || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error updating limit:', error);
-      alert('Error updating limit');
+      console.log('❌ Network error:', error);
+      alert('Network error while updating limit');
     } finally {
       setUpdating(null);
     }

@@ -1,4 +1,7 @@
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/.env' });
+console.log('🔍 [ENV] JWT_SECRET loaded:', process.env.JWT_SECRET ? 'YES' : 'NO');
+console.log('🔍 [ENV] JWT_SECRET value:', process.env.JWT_SECRET ? process.env.JWT_SECRET.substring(0, 10) + '...' : 'NOT SET');
+console.log('🔍 [ENV] .env file path:', __dirname + '/.env');
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -192,6 +195,18 @@ class ExternalApiServer {
         this.app.use(previewRoute);
         this.app.use(refreshRoutes);
         this.app.use(adminRawRoutes);
+
+        // Protected bets routes (require authentication)
+        this.app.use('/api/bets', require('./routes/bets'));
+
+        // Protected matches routes (require authentication)
+        this.app.use('/api/matches', require('./routes/matches'));
+
+        // Protected bet settlement routes (require authentication)
+        this.app.use('/api/bet-settlement', require('./routes/betSettlement'));
+
+        // Protected client ledger routes (require authentication)
+        this.app.use('/api/client-ledger', require('./routes/clientLedger'));
 
         // Add fixtures API routes
         this.app.use('/api/fixtures', fixturesApiRoutes);

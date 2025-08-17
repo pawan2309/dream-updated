@@ -138,16 +138,21 @@ export default function SubOwnerMasterPage() {
       const res = await fetch('/api/users/update-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ userIds: usersToUpdate, isActive: isActive, role: 'SUB_OWNER' }),
       });
       const data = await res.json();
       if (data.success) {
+        alert(data.message || `Successfully ${isActive ? 'activated' : 'deactivated'} users`);
         setSubOwners(prev => prev.map(user => usersToUpdate.includes(user.id) ? { ...user, isActive: isActive } : user));
         if (!userIds) { setSelectedUsers([]); }
+        refreshData();
       } else {
+        alert('Failed to update status: ' + (data.message || 'Unknown error'));
         console.error('Failed to update status:', data.message);
       }
     } catch (err) {
+      alert('Network error while updating status');
       console.error('Failed to update status:', err);
     } finally {
       if (isActive) { setActivating(false); } else { setDeactivating(false); }

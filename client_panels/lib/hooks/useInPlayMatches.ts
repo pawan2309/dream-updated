@@ -86,42 +86,108 @@ export function useInPlayMatches() {
     setFilteredMatches(filtered);
   }, [matches, filters, applyFilters]);
 
+  // Helper function to determine match status from fixture data (same as match page)
+  const getMatchStatus = (fixture: any): string => {
+    // First priority: if match is live (iplay = true), show INPLAY
+    if (fixture.iplay === true) {
+      return 'INPLAY';
+    }
+    
+    // Parse the start time properly
+    let startTime: Date | null = null;
+    if (fixture.stime) {
+      try {
+        // Handle different date formats from API
+        if (typeof fixture.stime === 'string') {
+          // Try parsing as is first
+          startTime = new Date(fixture.stime);
+          
+          // If invalid, try parsing with different formats
+          if (isNaN(startTime.getTime())) {
+            // Try parsing as MM/DD/YYYY HH:MM:SS AM/PM format
+            const parts = fixture.stime.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)\s+(AM|PM)/);
+            if (parts) {
+              const [_, month, day, year, hour, minute, second, ampm] = parts;
+              let hour24 = parseInt(hour);
+              if (ampm === 'PM' && hour24 !== 12) hour24 += 12;
+              if (ampm === 'AM' && hour24 === 12) hour24 = 0;
+              startTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(hour24), parseInt(minute), parseInt(second));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing fixture start time:', error);
+        startTime = null;
+      }
+    }
+    
+    if (!startTime || isNaN(startTime.getTime())) {
+      return 'UPCOMING';
+    }
+    
+    const now = new Date();
+    
+    // If start time is in the future, match is upcoming
+    if (startTime > now) {
+      return 'UPCOMING';
+    }
+    
+    // If start time is in the past but within last 24 hours
+    if (startTime <= now && startTime > new Date(now.getTime() - 24 * 60 * 60 * 1000)) {
+      // Check if match is still live or finished
+      return fixture.iplay === true ? 'INPLAY' : 'FINISHED';
+    }
+    
+    // If start time is more than 24 hours ago, match is finished
+    return 'FINISHED';
+  };
+
   // Fetch initial matches
   const fetchInitialMatches = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const result = await sharedApiService.getMatches();
+      // Fetch real fixture data from the API (same as match page)
+      const response = await fetch(`http://localhost:4001/provider/cricketmatches`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
-      if (result.success && result.data) {
-        const enhancedMatches: InPlayMatch[] = result.data.map(match => {
-          // Debug: Log the status processing
-          console.log('🔍 Hook Status Processing:', {
-            id: match.id,
-            originalStatus: match.status,
-            isLive: match.isLive,
-            finalStatus: match.status || (match.isLive ? 'LIVE' : 'UPCOMING')
-          });
-          
-          // Map status correctly - handle 'OPEN' from backend
-          let mappedStatus = match.status || (match.isLive ? 'LIVE' : 'UPCOMING');
-          if (mappedStatus === 'OPEN') {
-            mappedStatus = 'UPCOMING';
-          }
-          
-          return {
-            ...match,
-            matchStatus: mappedStatus as InPlayMatch['matchStatus'],
-            lastUpdate: Date.now()
-          };
+      const fixturesData = await response.json();
+      
+      // Transform the API data to match our interface
+      const enhancedMatches: InPlayMatch[] = fixturesData.map((fixture: any) => {
+        // Debug: Log the status processing
+        console.log('🔍 Hook Status Processing:', {
+          id: fixture.beventId,
+          ename: fixture.ename,
+          iplay: fixture.iplay,
+          stime: fixture.stime,
+          status: fixture.status
         });
         
-        setMatches(enhancedMatches);
-        matchesRef.current = enhancedMatches;
-      } else {
-        setError(result.error || 'Failed to load in-play matches');
-      }
+        // Use the improved status determination logic
+        const determinedStatus = getMatchStatus(fixture);
+        console.log('🔍 Determined Status:', determinedStatus);
+        
+        return {
+          id: fixture.beventId || fixture.id,
+          matchId: fixture.beventId || fixture.id,
+          matchName: fixture.ename || 'Unknown Match',
+          tournament: fixture.cname || 'Unknown Tournament',
+          date: fixture.stime ? new Date(fixture.stime).toLocaleDateString() : '',
+          time: fixture.stime ? new Date(fixture.stime).toLocaleTimeString() : '',
+          venue: '',
+          sport: 'Cricket',
+          isLive: fixture.iplay || false,
+          matchStatus: determinedStatus as InPlayMatch['matchStatus'],
+          lastUpdate: Date.now()
+        };
+      });
+      
+      setMatches(enhancedMatches);
+      matchesRef.current = enhancedMatches;
     } catch (err) {
       console.error('Error fetching in-play matches:', err);
       setError('Failed to load in-play matches. Please try again later.');
@@ -135,15 +201,12 @@ export function useInPlayMatches() {
     // Subscribe to in-play matches updates
     const unsubscribeInPlay = websocketService.subscribe('inplay_matches', (data: InPlayMatch[]) => {
       const enhancedMatches: InPlayMatch[] = data.map(match => {
-        // Map status correctly - handle 'OPEN' from backend
-        let mappedStatus = match.status || (match.isLive ? 'LIVE' : 'UPCOMING');
-        if (mappedStatus === 'OPEN') {
-          mappedStatus = 'UPCOMING';
-        }
+        // Use the improved status determination logic
+        const determinedStatus = getMatchStatus(match);
         
         return {
           ...match,
-          matchStatus: mappedStatus as InPlayMatch['matchStatus'],
+          matchStatus: determinedStatus as InPlayMatch['matchStatus'],
           lastUpdate: Date.now()
         };
       });

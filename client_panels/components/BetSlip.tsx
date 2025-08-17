@@ -11,7 +11,7 @@ interface BetSlipProps {
   } | null;
   onConfirm: (stake: number) => Promise<boolean>;
   onClose: () => void;
-  userBalance: number;
+  userBalance: number; // This will be userChips from the parent
   isLoading?: boolean;
 }
 
@@ -19,7 +19,7 @@ export default function BetSlip({
   bet, 
   onConfirm, 
   onClose, 
-  userBalance, 
+  userBalance, // This represents userChips
   isLoading = false 
 }: BetSlipProps) {
   const [stake, setStake] = useState<number>(0);
@@ -51,7 +51,7 @@ export default function BetSlip({
     }
     
     if (stake > userBalance) {
-      setError('Insufficient balance');
+      setError('Insufficient chips');
       return;
     }
 
@@ -126,7 +126,7 @@ export default function BetSlip({
         {/* Stake Input */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            Stake Amount
+            Stake Amount (Chips)
           </label>
           <input
             type="number"
@@ -138,7 +138,7 @@ export default function BetSlip({
             step="0.01"
           />
           <div className="text-xs text-gray-500 mt-1">
-            Available: ₹{userBalance.toFixed(2)}
+            Available Chips: ₹{userBalance.toFixed(2)}
           </div>
         </div>
 

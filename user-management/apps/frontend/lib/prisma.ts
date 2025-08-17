@@ -1,5 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+// Import the working Prisma client from the root directory
+import { PrismaClient } from '../../../../node_modules/@prisma/client';
 
+// Create a global Prisma client instance
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
@@ -7,9 +9,10 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
   datasources: {
     db: {
-      url: process.env.DATABASE_URL || "postgresql://postgres:8079@localhost:5432/betting_db"
+      url: process.env.DATABASE_URL || 'postgresql://postgres:8079@localhost:5432/betting_db'
     }
-  }
+  },
+  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error']
 });
 
 if (process.env.NODE_ENV !== 'production') {

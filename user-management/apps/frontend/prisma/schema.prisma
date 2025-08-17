@@ -29,6 +29,7 @@ model User {
   ledger              Ledger[]
   loginSessions       LoginSession[]
   profitDistributions ProfitDistribution[]
+  settlements         BetSettlement[]
   parent              User?                @relation("UserHierarchy", fields: [parentId], references: [id])
   children            User[]               @relation("UserHierarchy")
   UserCommissionShare UserCommissionShare?
@@ -73,8 +74,16 @@ model Match {
   startTime   DateTime?
   teams       Json?
   tournament  String?
+  
+  // Match Result Fields
+  winner              String?              // "ENGLAND W WIN", "INDIA W WIN", etc.
+  result              String?              // Match result details
+  settledAt           DateTime?            // When match was settled
+  resultData          Json?                // Detailed result information
+  
   bets        Bet[]
   odds        MatchOdds[]
+  settlements BetSettlement[]
 
   @@index([bmarketId])
   @@index([beventId])
@@ -83,6 +92,8 @@ model Match {
   @@index([isLive])
   @@index([isActive])
   @@index([createdAt])
+  @@index([settledAt])
+  @@index([winner])
 }
 
 model MatchOdds {
@@ -105,14 +116,36 @@ model Bet {
   id                  String               @id @default(uuid())
   userId              String
   matchId             String
+  marketId            String?              // Market identifier (e.g., "match_odds")
+  selectionId         String?              // Selection identifier (e.g., "match_odds_1_back_2")
+  selectionName       String?              // Selection name (e.g., "Shivamogga Lions")
+  marketName          String?              // Market name (e.g., "MATCH_ODDS")
   odds                Float
   stake               Float
+  type                String?              // Bet type (e.g., "back", "lay")
   potentialWin        Float
   status              BetStatus            @default(PENDING)
+  
+  // Bet Result Fields
+  wonAmount           Float?               // Amount won (null if lost or pending)
+  lostAmount          Float?               // Amount lost (null if won or pending)
+  result              String?              // "ENGLAND W WIN", "INDIA W WIN", etc.
+  settledAt           DateTime?            // When bet was settled
+  updatedAt           DateTime?            @updatedAt
+  
   createdAt           DateTime             @default(now())
   match               Match                @relation(fields: [matchId], references: [id])
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   profitDistributions ProfitDistribution[]
+  settlements         BetSettlement[]
+
+  @@index([userId, createdAt])
+  @@index([marketId])
+  @@index([selectionId])
+  @@index([type])
+  @@index([status])
+  @@index([settledAt])
+  @@index([result])
 }
 
 model ProfitDistribution {
@@ -124,6 +157,45 @@ model ProfitDistribution {
   createdAt    DateTime @default(now())
   bet          Bet      @relation(fields: [betId], references: [id])
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BetSettlement {
+  id              String     @id @default(uuid())
+  matchId         String
+  betId           String?
+  userId          String?
+  
+  // Settlement details
+  winner          String                    // Who won the match
+  result          String                    // Match result
+  settledAt       DateTime                  @default(now())
+  
+  // Financial impact
+  totalStakes     Float                     // Total stakes on this match
+  totalWinnings   Float                     // Total winnings paid out
+  totalLosses     Float                     // Total losses collected
+  
+  // Bet results
+  winningBets     Int                       // Number of winning bets
+  losingBets      Int                       // Number of losing bets
+  
+  // Processing status
+  isProcessed     Boolean                   @default(false)
+  processedAt     DateTime?
+  
+  // Relations
+  match           Match                     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  bet             Bet?                      @relation(fields: [betId], references: [id], onDelete: SetNull)
+  user            User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@index([matchId])
+  @@index([betId])
+  @@index([userId])
+  @@index([settledAt])
+  @@index([isProcessed])
 }
 
 model LoginSession {
@@ -201,6 +273,13 @@ enum LedgerType {
   PNL_CREDIT
   PNL_DEBIT
   SETTLEMENT
+  
+  // Bet-specific transaction types
+  BET_PLACEMENT
+  BET_CANCELLATION
+  BET_WIN
+  BET_LOSS
+  BET_SETTLEMENT
 }
 
 enum MatchStatus {
@@ -212,12 +291,15 @@ enum MatchStatus {
   CANCELED
   OPEN
   SUSPENDED
+  SETTLED
 }
 
 enum BetStatus {
   PENDING
   WON
   LOST
+  CANCELLED
+  SETTLED
 }
 
 enum CasinoBetStatus {

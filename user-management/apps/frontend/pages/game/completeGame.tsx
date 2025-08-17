@@ -1,14 +1,87 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import Head from 'next/head';
-import { requireAuth } from '../../lib/requireAuth';
 
-// Removed server-side auth check to prevent redirect loops
-export const getServerSideProps = async () => {
-  return { props: {} };
-};
+interface CompletedMatch {
+  id: string;
+  code: string;
+  name: string;
+  dateTime?: Date;
+  matchType: string;
+  declare: string;
+  wonBy: string;
+  plusMinus: string;
+  teams?: any;
+  tournament?: string;
+  apiSource?: string;
+  settledAt?: Date;
+  result?: string;
+  resultData?: any;
+}
 
 export default function CompleteGamePage() {
+  const [matches, setMatches] = useState<CompletedMatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchCompletedMatches();
+    // Refresh every 60 seconds (less frequent for completed matches)
+    const interval = setInterval(fetchCompletedMatches, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchCompletedMatches = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/matches/completed');
+      if (!response.ok) {
+        throw new Error('Failed to fetch completed matches');
+      }
+      const data = await response.json();
+      setMatches(data.matches || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch matches');
+      console.error('Error fetching completed matches:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'finished':
+        return <span className="badge badge-success">FINISHED</span>;
+      case 'settled':
+        return <span className="badge badge-info">SETTLED</span>;
+      case 'cancelled':
+        return <span className="badge badge-danger">CANCELLED</span>;
+      default:
+        return <span className="badge badge-secondary">{status}</span>;
+    }
+  };
+
+  const formatDateTime = (dateString: string | Date) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', { 
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const formatTeams = (teams: any) => {
+    if (!teams) return 'N/A';
+    if (typeof teams === 'string') return teams;
+    if (Array.isArray(teams)) return teams.join(' vs ');
+    return 'Teams info unavailable';
+  };
+
   return (
     <Layout>
       <Head>
@@ -47,8 +120,36 @@ export default function CompleteGamePage() {
             <div className="col-12">
               <div className="card">
                 <div className="card-header">
+                  <div className="d-flex justify-content-between align-items-center">
+                    <h3 className="card-title">Completed Matches</h3>
+                    <button 
+                      className="btn btn-primary btn-sm" 
+                      onClick={fetchCompletedMatches}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin mr-1"></i>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-sync-alt mr-1"></i>
+                          Refresh
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div className="card-body">
+                  {error && (
+                    <div className="alert alert-danger alert-dismissible">
+                      <button type="button" className="close" data-dismiss="alert" aria-hidden="true">×</button>
+                      <h5><i className="icon fas fa-ban"></i> Error!</h5>
+                      {error}
+                    </div>
+                  )}
+                  
                   <table className="table table-bordered table-striped">
                     <thead>
                       <tr>
@@ -65,7 +166,64 @@ export default function CompleteGamePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {/* Table data will be added here later */}
+                      {loading ? (
+                        <tr>
+                          <td colSpan={10} className="text-center">
+                            <div className="d-flex justify-content-center align-items-center py-4">
+                              <div className="spinner-border text-primary" role="status">
+                                <span className="sr-only">Loading...</span>
+                              </div>
+                              <span className="ml-2">Loading completed matches...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : matches.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="text-center text-muted py-4">
+                            <i className="fas fa-info-circle mr-2"></i>
+                            No completed matches available
+                          </td>
+                        </tr>
+                      ) : (
+                        matches.map((match, index) => (
+                          <tr key={match.id}>
+                            <td style={{ textAlign: 'center' }}>
+                              <input type="checkbox" name={`match_${match.id}`} value={match.id} />
+                            </td>
+                            <td>{index + 1}</td>
+                            <td>{index + 1}</td>
+                            <td>
+                              <span className="badge badge-secondary">{match.code}</span>
+                            </td>
+                            <td>
+                              <div>
+                                <strong>{match.name}</strong>
+                                {match.tournament && (
+                                  <div className="text-muted small">{match.tournament}</div>
+                                )}
+                                <div className="text-muted small">{formatTeams(match.teams)}</div>
+                              </div>
+                            </td>
+                            <td>
+                              {match.dateTime ? formatDateTime(match.dateTime) : 'N/A'}
+                            </td>
+                            <td>
+                              <span className="badge badge-info">{match.matchType}</span>
+                            </td>
+                            <td>
+                              {getStatusBadge(match.declare)}
+                            </td>
+                            <td>
+                              <span className="badge badge-success">{match.wonBy}</span>
+                            </td>
+                            <td>
+                              <span className={`badge ${match.plusMinus.startsWith('-') ? 'badge-danger' : 'badge-success'}`}>
+                                {match.plusMinus}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                     <tfoot></tfoot>
                   </table>

@@ -24,7 +24,7 @@ const config = {
   pgUrl: process.env.PG_URL || process.env.DATABASE_URL || 'postgresql://postgres:8079@localhost:5432/betting_db',
 
   // JWT
-  jwtSecret: process.env.JWT_SECRET || '',
+  jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
 
   // TTLs
   ttl: {
@@ -49,5 +49,9 @@ const config = {
     refreshMax: number(process.env.REFRESH_RATE_MAX, 30)
   }
 };
+
+// Debug JWT secret loading
+console.log('🔍 [CONFIG] JWT_SECRET from env:', process.env.JWT_SECRET ? 'SET' : 'NOT SET');
+console.log('🔍 [CONFIG] Final jwtSecret value:', config.jwtSecret ? config.jwtSecret.substring(0, 10) + '...' : 'NOT SET');
 
 module.exports = config;

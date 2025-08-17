@@ -25,10 +25,16 @@ function jwtAuth(options = {}) {
       if (token && secret) {
         try {
           const payload = jwt.verify(token, secret);
+          console.log('🔍 [JWT] Token verified successfully:', {
+            hasPayload: !!payload,
+            payloadKeys: payload ? Object.keys(payload) : [],
+            userId: payload?.userId
+          });
           req.user = payload;
           req.panelSettings = payload.panelSettings || parsePanelSettings(rawPanel) || null;
           return next();
         } catch (e) {
+          console.error('❌ [JWT] Token verification failed:', e.message);
           return res.status(401).json({ error: 'Unauthorized: invalid token' });
         }
       }

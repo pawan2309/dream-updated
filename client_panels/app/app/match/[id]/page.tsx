@@ -54,16 +54,18 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
   
   // Bet placement state
   const [selectedBet, setSelectedBet] = useState<BetSlipData | null>(null);
+  const [betSlipOpen, setBetSlipOpen] = useState(false); // Added missing state
   
   // Use bet placement hook
   const {
     bets: placedBets,
     isLoading: betLoading,
     error: betError,
-    userBalance,
+    userChips, // Changed from userBalance to userChips
+    userExposure, // Added userExposure
     placeBet,
     updateBetStatus,
-    getUserBalance,
+    getUserChips, // Changed from getUserBalance to getUserChips
     clearError
   } = useBetPlacement();
 
@@ -80,6 +82,62 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
 
 
 
+  // Helper function to determine match status from fixture data
+  const getMatchStatus = (fixture: any): string => {
+    // First priority: if match is live (iplay = true), show INPLAY
+    if (fixture.iplay === true) {
+      return 'INPLAY';
+    }
+    
+    // Parse the start time properly
+    let startTime: Date | null = null;
+    if (fixture.stime) {
+      try {
+        // Handle different date formats from API
+        if (typeof fixture.stime === 'string') {
+          // Try parsing as is first
+          startTime = new Date(fixture.stime);
+          
+          // If invalid, try parsing with different formats
+          if (isNaN(startTime.getTime())) {
+            // Try parsing as MM/DD/YYYY HH:MM:SS AM/PM format
+            const parts = fixture.stime.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)\s+(AM|PM)/);
+            if (parts) {
+              const [_, month, day, year, hour, minute, second, ampm] = parts;
+              let hour24 = parseInt(hour);
+              if (ampm === 'PM' && hour24 !== 12) hour24 += 12;
+              if (ampm === 'AM' && hour24 === 12) hour24 = 0;
+              startTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hour24, parseInt(minute), parseInt(second));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing fixture start time:', error);
+        startTime = null;
+      }
+    }
+    
+    if (!startTime || isNaN(startTime.getTime())) {
+      return 'UPCOMING';
+    }
+    
+    const now = new Date();
+    
+    // If start time is in the future, match is upcoming
+    if (startTime > now) {
+      return 'UPCOMING';
+    }
+    
+    // If start time is in the past but within last 24 hours
+    if (startTime <= now && startTime > new Date(now.getTime() - 24 * 60 * 60 * 1000)) {
+      // Check if match is still live or finished
+      return fixture.iplay === true ? 'INPLAY' : 'FINISHED';
+    }
+    
+    // If start time is more than 24 hours ago, match is finished
+    return 'FINISHED';
+  };
+
   // Fetch match data from API
   useEffect(() => {
     const fetchMatchData = async () => {
@@ -93,55 +151,68 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
         setLoading(true);
         setError(null);
         
-        // For now, create a basic match object since we removed the sharedApiService
-        const mockMatch = {
-          id: cleanMatchId,
-          matchId: cleanMatchId,
-          matchName: `Match ${cleanMatchId}`,
-          tournament: 'Cricket Tournament',
-          date: new Date().toLocaleDateString(),
-          time: new Date().toLocaleTimeString(),
-          venue: 'TBD',
-          sport: 'Cricket',
-          isLive: true,
-          status: 'LIVE'
+        // Fetch real fixture data from the API
+        const response = await fetch(`http://localhost:4001/provider/cricketmatches`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const fixturesData = await response.json();
+        
+        // Find the specific match by beventId
+        const fixture = fixturesData.find((f: any) => 
+          f.beventId === cleanMatchId || f.id === cleanMatchId || f.gmid === cleanMatchId
+        );
+        
+        if (!fixture) {
+          setError('Match not found');
+          setLoading(false);
+          return;
+        }
+        
+                 // Debug: Log fixture data for status determination
+         console.log('🔍 [DEBUG] Fixture data for status:', {
+           beventId: fixture.beventId,
+           ename: fixture.ename,
+           iplay: fixture.iplay,
+           stime: fixture.stime,
+           status: fixture.status,
+           gscode: fixture.gscode
+         });
+         
+         const matchStatus = getMatchStatus(fixture);
+         console.log('🔍 [DEBUG] Determined match status:', matchStatus);
+         
+         // Transform the API data to match our interface
+         const transformedMatch: InPlayMatch = {
+           id: fixture.beventId || fixture.id,
+           matchId: fixture.beventId || fixture.id,
+           matchName: fixture.ename || 'Unknown Match',
+           tournament: fixture.cname || 'Unknown Tournament',
+           date: fixture.stime ? new Date(fixture.stime).toLocaleDateString() : '',
+           time: fixture.stime ? new Date(fixture.stime).toLocaleTimeString() : '',
+           venue: '',
+           sport: 'Cricket',
+           matchStatus: fixture.iplay ? 'LIVE' : 'UPCOMING',
+           status: matchStatus,
+           isLive: fixture.iplay || false,
+           lastUpdate: Date.now(),
+          liveScore: {
+            homeScore: "",
+            awayScore: "",
+            overs: "",
+            runRate: "",
+            requiredRunRate: ""
+          },
+          liveOdds: {
+            home: 0,
+            away: 0,
+            draw: 0,
+            lastUpdated: Date.now()
+          }
         };
         
-        const result = { success: true, data: mockMatch };
-        
-        if (result.success && result.data) {
-          const transformedMatch: InPlayMatch = {
-            id: result.data.id,
-            matchId: result.data.matchId || result.data.id,
-            matchName: result.data.matchName,
-            tournament: result.data.tournament,
-            date: result.data.date,
-            time: result.data.time,
-            venue: result.data.venue || 'TBD',
-            sport: result.data.sport || 'Cricket',
-            matchStatus: result.data.isLive ? 'LIVE' : 'FINISHED',
-            status: result.data.status,
-            isLive: result.data.isLive,
-            lastUpdate: Date.now(),
-            liveScore: {
-              homeScore: "0-0",
-              awayScore: "0-0",
-              overs: "0.0",
-              runRate: "0.00",
-              requiredRunRate: "0.00"
-            },
-            liveOdds: {
-              home: 1.0,
-              away: 1.0,
-              draw: 15.0,
-              lastUpdated: Date.now()
-            }
-          };
-          
-          setMatch(transformedMatch);
-        } else {
-          setError('Failed to fetch match details');
-        }
+        setMatch(transformedMatch);
       } catch (err) {
         console.error('Error fetching match data:', err);
         setError('Failed to load match details. Please try again.');
@@ -246,7 +317,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
     // Subscribe to the specific match
     websocketService.subscribeToMatch(cleanMatchId);
 
-    // Cleanup function
+    // Cleanup subscriptions
     return () => {
       unsubscribeOdds();
       unsubscribeMatch();
@@ -254,10 +325,10 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
     };
   }, [cleanMatchId]);
 
-  // Fetch user balance on component mount
+  // Fetch user chips on component mount
   useEffect(() => {
-    getUserBalance();
-  }, [getUserBalance]);
+    getUserChips();
+  }, [getUserChips]);
 
   // Use all matches without filtering
 
@@ -341,11 +412,27 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
     );
   }
 
-  // Extract team names from match data
-  const team1Name = match.matchName.split(' v ')[0] || 'Team 1';
-  const team2Name = match.matchName.split(' v ')[1] || 'Team 2';
-  const team1Abbr = scorecard?.team1?.abbreviation || 'T1';
-  const team2Abbr = scorecard?.team2?.abbreviation || 'T2';
+  // Extract team names from match data - handle both " vs " and " v " formats properly
+  let team1Name = '';
+  let team2Name = '';
+  
+  // Try " vs " format first
+  if (match.matchName.includes(' vs ')) {
+    const parts = match.matchName.split(' vs ');
+    team1Name = parts[0] || '';
+    team2Name = parts[1] || '';
+  }
+  // If no " vs " found, try " v " format
+  else if (match.matchName.includes(' v ')) {
+    const parts = match.matchName.split(' v ');
+    team1Name = parts[0] || '';
+    team2Name = parts[1] || '';
+  }
+  // If neither format found, set as single team
+  else {
+    team1Name = match.matchName;
+    team2Name = '';
+  }
 
   return (
     <div className="min-h-dvh bg-gray-80 relative pt-[60px]">
@@ -373,28 +460,23 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
 
         {/* Main Content Area */}
         <div className="flex-1">
-          {/* Match Header */}
-          <div className="bg-white border-b border-gray-200 p-2">
-            <div className="max-w-6xl mx-auto">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-lg font-bold text-gray-900">{match.matchName}</h1>
-                  <p className="text-sm text-gray-600">{match.tournament} • {match.date} {match.time}</p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="text-center">
-                    <div className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-medium">LIVE</div>
-                    <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">ID: {cleanMatchId}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-sm font-medium">
-                      Balance: ₹{userBalance.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                     {/* Match Header */}
+           <div className="bg-white border-b border-gray-200 py-1 px-2">
+             <div className="max-w-6xl mx-auto">
+               <div className="flex items-center justify-between">
+                 <div>
+                   <h1 className="text-lg font-bold text-gray-900">{match.matchName || 'Loading...'}</h1>
+                   <p className="text-sm text-gray-600">
+                     {match.tournament && `${match.tournament} • `}{match.date} {match.time}
+                   </p>
+                 </div>
+                 <div className="flex items-center space-x-2">
+                   <div className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-sm font-medium">{match.status}</div>
+                   <div className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-sm font-medium">ID: {match.matchId}</div>
+                 </div>
+               </div>
+             </div>
+           </div>
 
           {/* Scoreboard */}
           <div className="bg-gradient-to-r from-gray-800 to-gray-900 p-3">
@@ -402,32 +484,37 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
               <div className="flex items-center justify-between text-white">
                 {/* Left Team */}
                 <div className="flex items-center space-x-3">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-300">{team1Abbr}</div>
-                    <div className="text-sm opacity-90 text-gray-200">{team1Name}</div>
-                  </div>
+                                     <div className="text-center">
+                     <div className="text-2xl font-bold text-blue-300">
+                       {scorecard?.data?.spnnation1 || team1Name?.substring(0, 2)?.toUpperCase() || 'T1'}
+                     </div>
+                     <div className="text-sm opacity-90 text-gray-200">
+                       {team1Name || 'Team 1'}
+                     </div>
+                   </div>
                   <div className="text-center">
                     <div className="text-xl font-bold text-white">
-                      {scorecard?.team1?.score || '0-0'}
+                      {scorecard?.data?.score1 || '0-0'}
                     </div>
                     <div className="text-sm opacity-75 text-gray-300">
-                      RR: {scorecard?.team1?.runRate || '0.00'}
+                      RR: {scorecard?.data?.spnrunrate1 || '0.00'}
                     </div>
                   </div>
                 </div>
 
-                {/* Center - Current Over */}
+                {/* Center - Match Status & Current Over */}
                 <div className="text-center flex-1 mx-4">
-                  <div className="text-3xl font-bold text-white mb-1">
-                    {scorecard?.team1?.isActive ? scorecard.team1.score : scorecard?.team2?.score || '0-0'}
+                  <div className="text-2xl font-bold text-white mb-1">
+                    {scorecard?.data?.spnmessage || 'Match Status'}
                   </div>
                   <div className="text-base opacity-90 text-gray-200 mb-2">
-                    {scorecard?.team1?.isActive ? team1Name : team2Name} Batting • RR: {scorecard?.team1?.isActive ? scorecard.team1.runRate : scorecard?.team2?.runRate || '0.00'}
+                    {scorecard?.data?.activenation2 === '1' ? team2Name : team1Name} Batting • 
+                    RR: {scorecard?.data?.activenation2 === '1' ? scorecard?.data?.spnrunrate2 : scorecard?.data?.spnrunrate1 || '0.00'}
                   </div>
                   
                   {/* Current Over Balls */}
                   <div className="flex justify-center gap-1 mb-1">
-                    {scorecard?.currentOver?.slice(0, 6).map((ball, index) => (
+                    {scorecard?.data?.balls?.slice(0, 6).map((ball: string, index: number) => (
                       <div 
                         key={index} 
                         className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
@@ -436,21 +523,8 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                           ball === '6' ? 'bg-purple-500' : 
                           ball === '1' ? 'bg-blue-500' :
                           ball === '2' ? 'bg-blue-600' :
-                          ball === '-' ? 'bg-gray-500' : 'bg-gray-600'
-                        }`}
-                      >
-                        {ball}
-                      </div>
-                    )) || ['1', '4', 'W', '2', '6', '-'].map((ball, index) => (
-                      <div 
-                        key={index} 
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                          ball === 'W' ? 'bg-red-500' : 
-                          ball === '4' ? 'bg-green-500' : 
-                          ball === '6' ? 'bg-purple-500' : 
-                          ball === '1' ? 'bg-blue-500' :
-                          ball === '2' ? 'bg-blue-600' :
-                          ball === '-' ? 'bg-gray-500' : 'bg-gray-600'
+                          ball === '0' ? 'bg-gray-600' :
+                          ball === '-' ? 'bg-gray-500' : 'bg-blue-400'
                         }`}
                       >
                         {ball}
@@ -458,43 +532,51 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                     ))}
                   </div>
                   <div className="text-xs opacity-75 text-gray-300">
-                    Current Over • {scorecard?.team1?.isActive ? team1Name : team2Name} batting
+                    Current Over • {scorecard?.data?.activenation2 === '1' ? team2Name : team1Name} batting
                   </div>
+                  
+                  
                 </div>
 
                 {/* Right Team */}
                 <div className="flex items-center space-x-3">
                   <div className="text-center">
                     <div className="text-xl font-bold text-white">
-                      {scorecard?.team2?.score || '0-0'}
+                      {scorecard?.data?.score2 || '0-0'}
                     </div>
                     <div className="text-sm opacity-75 text-gray-300">
-                      RR: {scorecard?.team2?.runRate || '0.00'}
+                      RR: {scorecard?.data?.spnrunrate2 || '0.00'}
                     </div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-400">{team2Abbr}</div>
-                    <div className="text-sm opacity-90 text-gray-200">{team2Name}</div>
-                  </div>
+                                     <div className="text-center">
+                     <div className="text-2xl font-bold text-gray-400">
+                       {scorecard?.data?.spnnation2 || team2Name?.substring(0, 2)?.toUpperCase() || 'T2'}
+                     </div>
+                     <div className="text-sm opacity-90 text-gray-200">
+                       {team2Name || 'Team 2'}
+                     </div>
+                   </div>
                 </div>
               </div>
+              
+              {/* Match Progress Bar */}
+              {scorecard?.data?.spnreqrate2 && (
+                <div className="mt-3 text-center">
+                  <div className="text-sm text-gray-300 mb-1">
+                    Required Run Rate: {scorecard.data.spnreqrate2}
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div className="bg-green-500 h-2 rounded-full" style={{ width: '50%' }}></div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Betting Markets */}
           <div className="max-w-6xl mx-auto p-2">
             
-            {/* Real-time Update Indicator */}
-            {oddsData?.lastUpdated && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-green-700">
-                    Odds last updated at {new Date(oddsData.lastUpdated).toLocaleTimeString()}
-                  </span>
-                </div>
-              </div>
-            )}
+          
             
             {/* Dynamic Markets Display - Shows ALL available markets from API */}
             <div className="space-y-3">
@@ -676,7 +758,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                                             <LayOddsBox
                                               value={selections.lay[1].odds}
                                               volume={selections.lay[1].stake}
-                                              onClick={() => addBet(market, selections.lay[1], 'lay')}
+                                              onClick={() => openBetSlip(market, selections.lay[1], 'lay')}
                                               tier={1}
                                             />
                                           ) : (
@@ -690,7 +772,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                                             <LayOddsBox
                                               value={selections.lay[2].odds}
                                               volume={selections.lay[2].stake}
-                                              onClick={() => addBet(market, selections.lay[2], 'lay')}
+                                              onClick={() => openBetSlip(market, selections.lay[2], 'lay')}
                                               tier={2}
                                             />
                                           ) : (
@@ -710,7 +792,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                                             <LayOddsBox
                                               value={selections.lay[0].odds}
                                               volume={selections.lay[0].stake}
-                                              onClick={() => addBet(market, selections.lay[0], 'lay')}
+                                              onClick={() => openBetSlip(market, selections.lay[0], 'lay')}
                                             />
                                           ) : (
                                             <div className="w-20 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
@@ -727,7 +809,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                                             <BackOddsBox
                                               value={selections.back[0].odds}
                                               volume={selections.back[0].stake}
-                                              onClick={() => addBet(market, selections.back[0], 'back')}
+                                              onClick={() => openBetSlip(market, selections.back[0], 'back')}
                                             />
                                           ) : (
                                             <div className="w-20 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
@@ -749,21 +831,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                         )}
                       </div>
                       
-                      {/* Market Remarks */}
-                      {market.id === 'bookmaker' && (
-                        <div className="p-2 bg-gray-50 border-t border-gray-200">
-                          <p className="text-xs text-gray-600 text-center">
-                            EPL and LALIGA Football Matches Advance Bets Started In Our Exchange.
-                          </p>
-                        </div>
-                      )}
-                      {market.id === 'tied_match' && (
-                        <div className="p-2 bg-gray-50 border-t border-gray-200">
-                          <p className="text-xs text-gray-600 text-center">
-                            The Hundred Mens And Womens And CPL Cup Winner Bets Started In Our Exchange
-                          </p>
-                        </div>
-                      )}
+                      {/* Market Remarks - Removed hardcoded text */}
                     </div>
                   );
                 })
@@ -780,13 +848,6 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                   <div className="p-6">
                     <div className="text-center text-gray-500">
                       <p>No odds data available. Please check the API connection or try refreshing the page.</p>
-                      <p className="text-sm mt-2">Match ID: {cleanMatchId}</p>
-                      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                        <p className="text-sm font-medium text-gray-700 mb-2">Debug Info:</p>
-                        <p className="text-xs text-gray-600">Odds Data: {oddsData ? 'Loaded' : 'Not loaded'}</p>
-                        <p className="text-xs text-gray-600">Markets Count: {oddsData?.markets?.length || 0}</p>
-                        <p className="text-xs text-gray-600">Last Updated: {oddsData?.lastUpdated || 'Never'}</p>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -851,7 +912,9 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Provider:</span>
-                  <span className="text-blue-600 font-medium">Live TV</span>
+                  <span className="text-blue-600 font-medium">
+                    {streamUrl ? 'Live TV' : 'Streaming'}
+                  </span>
                 </div>
               </div>
 
@@ -868,7 +931,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                   bet={selectedBet}
                   onConfirm={handleBetConfirm}
                   onClose={() => setSelectedBet(null)}
-                  userBalance={userBalance}
+                  userBalance={userChips}
                   isLoading={betLoading}
                 />
               </div>

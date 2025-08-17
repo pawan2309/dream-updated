@@ -103,6 +103,21 @@ class DatabaseManager {
         }
     }
 
+    async transaction(callback) {
+        const client = await this.getClient();
+        try {
+            await client.query('BEGIN');
+            const result = await callback(client);
+            await client.query('COMMIT');
+            return result;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
     // Transaction helper
     async transaction(callback) {
         const client = await this.getClient();
@@ -124,10 +139,12 @@ class DatabaseManager {
     async findOne(table, conditions = {}, columns = ['*']) {
         try {
             const whereClause = Object.keys(conditions).length > 0 
-                ? 'WHERE ' + Object.keys(conditions).map(key => `${key} = $${Object.keys(conditions).indexOf(key) + 1}`).join(' AND ')
+                ? 'WHERE ' + Object.keys(conditions).map(key => `"${key}" = $${Object.keys(conditions).indexOf(key) + 1}`).join(' AND ')
                 : '';
             
-            const query = `SELECT ${columns.join(', ')} FROM ${table} ${whereClause} LIMIT 1`;
+            // Explicitly specify public schema with quoted table names and column names for case sensitivity
+            const schemaTable = table.includes('.') ? table : `public."${table}"`;
+            const query = `SELECT ${columns.join(', ')} FROM ${schemaTable} ${whereClause} LIMIT 1`;
             const values = Object.values(conditions);
             
             const result = await this.query(query, values);
@@ -142,10 +159,12 @@ class DatabaseManager {
     async findMany(table, conditions = {}, columns = ['*'], orderBy = null, limit = null) {
         try {
             const whereClause = Object.keys(conditions).length > 0 
-                ? 'WHERE ' + Object.keys(conditions).map(key => `${key} = $${Object.keys(conditions).indexOf(key) + 1}`).join(' AND ')
+                ? 'WHERE ' + Object.keys(conditions).map(key => `"${key}" = $${Object.keys(conditions).indexOf(key) + 1}`).join(' AND ')
                 : '';
             
-            let query = `SELECT ${columns.join(', ')} FROM ${table} ${whereClause}`;
+            // Explicitly specify public schema with quoted table names and column names for case sensitivity
+            const schemaTable = table.includes('.') ? table : `public."${table}"`;
+            let query = `SELECT ${columns.join(', ')} FROM ${schemaTable} ${whereClause}`;
             
             if (orderBy) {
                 query += ` ORDER BY ${orderBy}`;
@@ -171,7 +190,10 @@ class DatabaseManager {
             const values = Object.values(data);
             const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
             
-            const query = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+            // Explicitly specify public schema with quoted table names and column names for case sensitivity
+            const schemaTable = table.includes('.') ? table : `public."${table}"`;
+            const quotedColumns = columns.map(col => `"${col}"`).join(', ');
+            const query = `INSERT INTO ${schemaTable} (${quotedColumns}) VALUES (${placeholders}) RETURNING *`;
             const result = await this.query(query, values);
             
             return result.rows[0];
@@ -184,10 +206,12 @@ class DatabaseManager {
 
     async update(table, data, conditions) {
         try {
-            const setClause = Object.keys(data).map(key => `${key} = $${Object.keys(data).indexOf(key) + 1}`).join(', ');
-            const whereClause = Object.keys(conditions).map(key => `${key} = $${Object.keys(data).length + Object.keys(conditions).indexOf(key) + 1}`).join(' AND ');
+            const setClause = Object.keys(data).map(key => `"${key}" = $${Object.keys(data).indexOf(key) + 1}`).join(', ');
+            const whereClause = Object.keys(conditions).map(key => `"${key}" = $${Object.keys(data).length + Object.keys(conditions).indexOf(key) + 1}`).join(' AND ');
             
-            const query = `UPDATE ${table} SET ${setClause} WHERE ${whereClause} RETURNING *`;
+            // Explicitly specify public schema with quoted table names and column names for case sensitivity
+            const schemaTable = table.includes('.') ? table : `public."${table}"`;
+            const query = `UPDATE ${schemaTable} SET ${setClause} WHERE ${whereClause} RETURNING *`;
             const values = [...Object.values(data), ...Object.values(conditions)];
             
             const result = await this.query(query, values);
@@ -201,8 +225,10 @@ class DatabaseManager {
 
     async delete(table, conditions) {
         try {
-            const whereClause = Object.keys(conditions).map(key => `${key} = $${Object.keys(conditions).indexOf(key) + 1}`).join(' AND ');
-            const query = `DELETE FROM ${table} WHERE ${whereClause} RETURNING *`;
+            const whereClause = Object.keys(conditions).map(key => `"${key}" = $${Object.keys(conditions).indexOf(key) + 1}`).join(' AND ');
+            // Explicitly specify public schema with quoted table names and column names for case sensitivity
+            const schemaTable = table.includes('.') ? table : `public."${table}"`;
+            const query = `DELETE FROM ${schemaTable} WHERE ${whereClause} RETURNING *`;
             const values = Object.values(conditions);
             
             const result = await this.query(query, values);
@@ -217,10 +243,12 @@ class DatabaseManager {
     async count(table, conditions = {}) {
         try {
             const whereClause = Object.keys(conditions).length > 0 
-                ? 'WHERE ' + Object.keys(conditions).map(key => `${key} = $${Object.keys(conditions).indexOf(key) + 1}`).join(' AND ')
+                ? 'WHERE ' + Object.keys(conditions).map(key => `"${key}" = $${Object.keys(conditions).indexOf(key) + 1}`).join(' AND ')
                 : '';
             
-            const query = `SELECT COUNT(*) as count FROM ${table} ${whereClause}`;
+            // Explicitly specify public schema with quoted table names and column names for case sensitivity
+            const schemaTable = table.includes('.') ? table : `public."${table}"`;
+            const query = `SELECT COUNT(*) as count FROM ${schemaTable} ${whereClause}`;
             const values = Object.values(conditions);
             
             const result = await this.query(query, values);

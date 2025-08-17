@@ -20,14 +20,50 @@ router.post("/logout", verifyJwtToken, logout);
 router.get(
   "/session",
   verifyJwtToken,
-  (req, res) => res.json({
-    authenticated: true,
-    user: {
-      id: req.user?.sub,
-      role: req.user?.role,
-      subdomain: req.user?.subdomain,
-    },
-  })
+  async (req, res) => {
+    try {
+      // Get user ID from JWT token
+      const userId = req.user?.userId;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "Invalid token - no user ID found"
+        });
+      }
+
+      // Fetch user data from database using user ID from JWT
+      const user = await database.findOne("User", { id: userId });
+      
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: "User not found in database"
+        });
+      }
+
+      // Return user data including chips (creditLimit)
+      return res.json({
+        success: true,
+        authenticated: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          subdomain: req.user?.subdomain,
+          creditLimit: user.creditLimit || 0,
+          exposure: user.exposure || 0,
+          balance: user.balance || 0
+        },
+      });
+    } catch (error) {
+      console.error("Error in session endpoint:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch user data"
+      });
+    }
+  }
 );
 
 // Example guarded routes (backend-only RBAC)

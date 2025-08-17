@@ -1,20 +1,39 @@
 // Scorecard service for fetching live match data
 export interface ScorecardData {
   eventId: string;
-  team1: {
+  type?: number;
+  data?: {
+    spnnation1: string;
+    spnnation2: string;
+    spnballrunningstatus: string;
+    score1: string;
+    score2: string;
+    spnrunrate1: string;
+    spnrunrate2: string;
+    spnmessage: string;
+    spnreqrate1: string;
+    spnreqrate2: string;
+    dayno: string;
+    isfinished: string;
+    activenation1: string;
+    activenation2: string;
+    balls: string[];
+  };
+  // Legacy interface for backward compatibility
+  team1?: {
     abbreviation: string;
     score: string;
     runRate: string;
     isActive: boolean;
   };
-  team2: {
+  team2?: {
     abbreviation: string;
     score: string;
     runRate: string;
     isActive: boolean;
   };
-  currentOver: string[];
-  isFinished: boolean;
+  currentOver?: string[];
+  isFinished?: boolean;
   message?: string;
 }
 
@@ -73,6 +92,9 @@ class ScorecardService {
       
       return {
         eventId,
+        type: rawData.type,
+        data: data,
+        // Legacy interface for backward compatibility
         team1: {
           abbreviation: data.spnnation1 || 'T1',
           score: data.score1 || '0-0',
@@ -94,6 +116,25 @@ class ScorecardService {
     // Fallback to default data if structure doesn't match
     return {
       eventId,
+      type: 1,
+      data: {
+        spnnation1: 'T1',
+        spnnation2: 'T2',
+        spnballrunningstatus: '',
+        score1: '0-0',
+        score2: '0-0',
+        spnrunrate1: '0.00',
+        spnrunrate2: '0.00',
+        spnmessage: 'Match Status',
+        spnreqrate1: '0.00',
+        spnreqrate2: '0.00',
+        dayno: '',
+        isfinished: '0',
+        activenation1: '0',
+        activenation2: '0',
+        balls: []
+      },
+      // Legacy interface for backward compatibility
       team1: {
         abbreviation: 'T1',
         score: '0-0',

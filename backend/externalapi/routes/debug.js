@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
 const config = require('../../config');
+const database = require('../utils/database'); // Added for database testing
 
 // Ensure fetch is available (Node.js 18+ has it natively, but add fallback)
 let fetch;
@@ -419,5 +420,66 @@ router.get('/queue-status', async (req, res) => {
         });
     }
 });
+
+// Test database query directly (unprotected for debugging)
+router.get('/test-db-query', async (req, res) => {
+  try {
+    console.log('Testing database query directly...');
+    
+    // Test 1: Check what tables exist
+    const tablesResult = await database.query(`
+      SELECT table_name, table_schema 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name
+    `);
+    console.log('Available tables:', tablesResult.rows);
+    
+    // Test 2: Check User table structure
+    const columnsResult = await database.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns 
+      WHERE table_name = 'User' AND table_schema = 'public'
+      ORDER BY ordinal_position
+    `);
+    console.log('User table columns:', columnsResult.rows);
+    
+    // Test 3: Try to find a user by username
+    const userResult = await database.query(`
+      SELECT id, username, role, "creditLimit", exposure, balance
+      FROM "public"."User" 
+      WHERE username = 'USE0001'
+      LIMIT 1
+    `);
+    console.log('User found by username:', userResult.rows[0]);
+    
+    // Test 4: Check if the ID from JWT exists
+    const jwtUserId = '211957a4-2f49-406f-afc3-708cd6296b36';
+    const idResult = await database.query(`
+      SELECT id, username, role
+      FROM "public"."User" 
+      WHERE id = $1
+      LIMIT 1
+    `, [jwtUserId]);
+    console.log('User found by JWT ID:', idResult.rows[0]);
+    
+    res.json({
+      success: true,
+      tables: tablesResult.rows,
+      userTableColumns: columnsResult.rows,
+      userByUsername: userResult.rows[0],
+      userById: idResult.rows[0],
+      message: 'Check backend console for detailed logs'
+    });
+  } catch (error) {
+    console.error('Error testing database query:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 
 module.exports = router;

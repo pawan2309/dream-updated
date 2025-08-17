@@ -28,92 +28,52 @@ export default function ChangePasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+    
     setLoading(true);
     setError('');
-    setSuccess('');
-    setToast(null);
-    setChangedUsername('');
-
-    if (formData.newPassword !== formData.confirmPassword) {
-      setError('New password and confirm password do not match');
-      setLoading(false);
-      return;
-    }
-
-    if (formData.newPassword.length < 6) {
-      setError('New password must be at least 6 characters long');
-      setLoading(false);
-      return;
-    }
-
+    
     try {
-      let res;
-      if (userId) {
-        // Change password for another user
-        res = await fetch(`/api/users/${userId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ password: formData.newPassword })
-        });
-      } else {
-        // Change password for current user
-        res = await fetch('/api/users/change-password', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // Ensure cookies are sent
-          body: JSON.stringify({
-            newPassword: formData.newPassword
-          })
-        });
-      }
+      console.log('📡 Making API call to /api/users/change-password');
+      const requestBody = {
+        currentPassword,
+        newPassword
+      };
+      console.log('📦 Request body:', requestBody);
+      
+      const res = await fetch('/api/users/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(requestBody),
+      });
+      
+      console.log('📥 Response received:', res.status, res.statusText);
       const data = await res.json();
+      console.log('📄 Response data:', data);
+      
       if (data.success) {
-        setSuccess(''); // Do not show success in form
-        setFormData({
-          newPassword: '',
-          confirmPassword: ''
-        });
-        // Show toast with username if available
-        let username = data.username;
-        if (!username && userId) {
-          try {
-            const userRes = await fetch(`/api/users/${userId}`);
-            const userData = await userRes.json();
-            if (userData.success && userData.user && userData.user.username) {
-              username = userData.user.username;
-            }
-          } catch {}
-        }
-        setChangedUsername(username || '');
-        setToast({ message: `Password changed successfully for user ${username || ''}`, show: true });
-        if (toastTimeout.current) clearTimeout(toastTimeout.current);
-        // Redirect instantly
-        setTimeout(() => {
-          setToast(null);
-          const returnUrl = router.query.returnUrl as string;
-          if (returnUrl) {
-            router.push(returnUrl);
-          } else {
-            // If no returnUrl, check if this is a self-password change or other user change
-            if (userId) {
-              // Changing another user's password but no returnUrl - go to user_details
-              router.push('/user_details');
-            } else {
-              // Changing own password - go to profile
-              router.push('/profile');
-            }
-          }
-        }, 1500);
-        return;
+        console.log('✅ Password change successful');
+        setSuccess('Password changed successfully!');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
       } else {
+        console.log('❌ Password change failed:', data.message);
         setError(data.message || 'Failed to change password');
       }
-    } catch (error) {
-      setError('Error changing password. Please try again.');
+    } catch (err) {
+      console.log('❌ Network error:', err);
+      setError('Network error while changing password');
     } finally {
       setLoading(false);
     }

@@ -53,27 +53,53 @@ function generateJwtToken(userId, role, subdomain) {
  * { id: string|number, name: string, email: string, passwordHash: string }
  * Return null/undefined if the user is not found or not allowed.
  */
-async function authenticateUser(identifier, plainPassword) {
-  // NOTE: per requirement, password is stored as plain text in DB.
-  // Updated to match actual database schema with username column
-  const user = await database.findOne("users", { username: identifier }, [
-    "id",
-    "username",
-    "password",
-    "role",
-  ]);
-
-  if (!user) return null;
-
-  // Plain text comparison as requested
-  if (String(user.password) !== String(plainPassword)) return null;
-
-  return {
-    id: user.id,
-    name: user.username, // Use username as name
-    email: user.username, // Use username as email for compatibility
-    role: user.role,
-  };
+async function authenticateUser(username, plainPassword) {
+  try {
+    console.log(`🔍 Authenticating user: ${username}`);
+    
+    // Try with quoted table name first (case-sensitive)
+    let user = await database.findOne('"User"', { username: username }, [
+      "id",
+      "username",
+      "password",
+      "role",
+    ]);
+    
+    if (!user) {
+      console.log('❌ User not found with quoted table name, trying lowercase...');
+      // Try with lowercase table name
+      user = await database.findOne('user', { username: username }, [
+        "id",
+        "username",
+        "password",
+        "role",
+      ]);
+    }
+    
+    if (!user) {
+      console.log('❌ User not found with any table name');
+      return null;
+    }
+    
+    console.log('✅ User found:', { id: user.id, username: user.username, role: user.role });
+    
+        // Plain text comparison as requested
+    if (String(user.password) !== String(plainPassword)) {
+      console.log('❌ Password mismatch');
+      return null;
+    }
+    
+    console.log('✅ Authentication successful');
+    return {
+      id: user.id,
+      name: user.username, // Use username as name
+      email: user.username, // Use username as email for compatibility
+      role: user.role,
+    };
+  } catch (error) {
+    console.error('❌ Error in authenticateUser:', error);
+    throw error;
+  }
 }
 
 module.exports = {

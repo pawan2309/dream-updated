@@ -59,11 +59,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Create ledger entry for source user (debit)
       const fromLedgerData = {
         userId: fromUserId,
-        amount: parsedAmount,
-        type: 'DEBIT',
-        description: `Transfer to ${toUser.username || toUser.name} - ${remark}`,
-        reference: `TRANSFER_OUT_${Date.now()}`,
-        createdBy: 'system'
+        debit: parsedAmount,
+        credit: 0,
+        balanceAfter: (fromUser.creditLimit || 0) - parsedAmount,
+        type: 'ADJUSTMENT',
+        remark: `Transfer to ${toUser.username || toUser.name} - ${remark}`,
+        referenceId: `TRANSFER_OUT_${Date.now()}`,
+        transactionType: 'TRANSFER'
       };
 
       await tx.ledger.create({ data: fromLedgerData });
@@ -71,11 +73,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Create ledger entry for destination user (credit)
       const toLedgerData = {
         userId: toUserId,
-        amount: parsedAmount,
-        type: 'CREDIT',
-        description: `Transfer from ${fromUser.username || fromUser.name} - ${remark}`,
-        reference: `TRANSFER_IN_${Date.now()}`,
-        createdBy: 'system'
+        debit: 0,
+        credit: parsedAmount,
+        balanceAfter: (toUser.creditLimit || 0) + parsedAmount,
+        type: 'ADJUSTMENT',
+        remark: `Transfer from ${fromUser.username || fromUser.name} - ${remark}`,
+        referenceId: `TRANSFER_IN_${Date.now()}`,
+        transactionType: 'TRANSFER'
       };
 
       await tx.ledger.create({ data: toLedgerData });

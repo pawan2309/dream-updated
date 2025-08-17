@@ -21,7 +21,7 @@ const nextConfig = {
       config.watchOptions = {
         poll: 1000,
         aggregateTimeout: 300,
-        ignored: ['**/node_modules/**', '**/.prisma/**', '**/prisma/migrations/**'],
+        ignored: ['**/node_modules/**', '**/prisma/migrations/**'],
       };
     }
     return config;

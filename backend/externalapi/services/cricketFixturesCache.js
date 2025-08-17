@@ -1,6 +1,7 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 const redis = require('../utils/redisClient');
+const database = require('../utils/database');
 const { normalizeFixtureId } = require('../utils/normalizeFixtureId');
 
 // -----------------------------------------------------------------------------
@@ -88,6 +89,75 @@ async function fetchFromProvider () {
 }
 
 /**
+ * Sync matches to PostgreSQL database
+ */
+async function syncMatchesToDatabase(fixtures) {
+  try {
+    logger.info('[fixtures-cache] Syncing matches to database...');
+    
+    let syncedCount = 0;
+    let errorCount = 0;
+
+    for (const fixture of fixtures) {
+      try {
+        const externalId = fixture.raw.eventId || fixture.raw.id || fixture.id;
+        
+        if (!externalId) {
+          logger.warn('[fixtures-cache] Skipping fixture with no external ID');
+          continue;
+        }
+
+        // Check if match already exists
+        const existingMatch = await database.findOne('Match', { 
+          externalId: externalId.toString()
+        });
+
+        if (existingMatch) {
+          // Update existing match if needed
+          await database.update('Match', { id: existingMatch.id }, {
+            lastUpdated: new Date(),
+            rawData: fixture.raw
+          });
+          continue;
+        }
+
+        // Create new match
+        const matchData = {
+          id: `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          title: fixture.raw.eventName || fixture.raw.title || 'Unknown Match',
+          externalId: externalId.toString(),
+          beventId: externalId.toString(),
+          status: fixture.raw.status || 'UPCOMING',
+          isActive: true,
+          isCricket: true,
+          isDeleted: false,
+          isLive: fixture.raw.isLive || false,
+          createdAt: new Date(),
+          lastUpdated: new Date(),
+          rawData: fixture.raw
+        };
+
+        await database.insert('Match', matchData);
+        syncedCount++;
+        
+        logger.info(`✅ [fixtures-cache] Created match: ${matchData.title} (${externalId})`);
+
+      } catch (error) {
+        logger.error(`❌ [fixtures-cache] Error syncing fixture to database:`, error.message);
+        errorCount++;
+      }
+    }
+
+    logger.info(`✅ [fixtures-cache] Database sync completed: ${syncedCount} synced, ${errorCount} errors`);
+    return { syncedCount, errorCount };
+
+  } catch (error) {
+    logger.error('[fixtures-cache] Database sync failed:', error);
+    throw error;
+  }
+}
+
+/**
  * Refresh the cache – only writes to Redis *after* a successful fetch.
  */
 async function refreshCache () {
@@ -106,6 +176,16 @@ async function refreshCache () {
     await redis.set(CACHE_KEY, fixtures, REDIS_TTL_SECONDS);
 
     logger.info(`[fixtures-cache] Cache updated – ${fixtures.length} fixtures cached`);
+
+    // Also sync matches to PostgreSQL database
+    if (fixtures.length > 0) {
+      try {
+        await syncMatchesToDatabase(fixtures);
+      } catch (dbError) {
+        logger.error('[fixtures-cache] Database sync failed, but Redis cache updated:', dbError);
+      }
+    }
+
   } catch (err) {
     // Log & swallow – keep old cache intact
     logger.error('[fixtures-cache] Refresh failed – using existing cached data', err);
@@ -129,18 +209,25 @@ async function startCricketFixturesCache () {
     await redis.connect();
   }
 
-  // 1. Cold-start fill – if the key does NOT exist or holds no data, fetch now.
-  try {
-    const existing = await redis.get(CACHE_KEY);
-    if (!existing || (Array.isArray(existing) && existing.length === 0)) {
-      logger.info('[fixtures-cache] Cache empty on start – performing immediate fetch');
-      await refreshCache();
-    } else {
-      logger.info(`[fixtures-cache] Cache already has ${existing.length} fixtures on start`);
+      // 1. Cold-start fill – if the key does NOT exist or holds no data, fetch now.
+    try {
+      const existing = await redis.get(CACHE_KEY);
+      if (!existing || (Array.isArray(existing) && existing.length === 0)) {
+        logger.info('[fixtures-cache] Cache empty on start – performing immediate fetch');
+        await refreshCache();
+      } else {
+        logger.info(`[fixtures-cache] Cache already has ${existing.length} fixtures on start`);
+        
+        // Even if cache has data, sync to database to ensure consistency
+        try {
+          await syncMatchesToDatabase(existing);
+        } catch (dbError) {
+          logger.error('[fixtures-cache] Cold-start database sync failed:', dbError);
+        }
+      }
+    } catch (err) {
+      logger.error('[fixtures-cache] Failed to check existing cache on start', err);
     }
-  } catch (err) {
-    logger.error('[fixtures-cache] Failed to check existing cache on start', err);
-  }
 
   // 2. Start background interval
   intervalHandle = setInterval(refreshCache, REFRESH_INTERVAL_MS);
@@ -150,5 +237,6 @@ async function startCricketFixturesCache () {
 }
 
 module.exports = {
-  startCricketFixturesCache
+  startCricketFixturesCache,
+  syncMatchesToDatabase
 };

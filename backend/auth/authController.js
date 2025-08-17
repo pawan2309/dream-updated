@@ -9,12 +9,12 @@ const {
 
 async function login(req, res) {
   try {
-    const { identifier, password } = req.body || {};
-    if (!identifier || !password) {
-      return res.status(400).json({ message: "identifier and password are required" });
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ message: "username and password are required" });
     }
 
-    const user = await authenticateUser(identifier, password);
+    const user = await authenticateUser(username, password);
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
