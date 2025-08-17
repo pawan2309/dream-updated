@@ -1,105 +1,114 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../lib/prisma';
-import { LedgerType, Prisma } from '@prisma/client';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, message: 'Method not allowed' });
-  }
-
-  const { parentId, childId, amount, type, remark } = req.body;
-  if (!parentId || !childId || !amount || !type) {
-    return res.status(400).json({ success: false, message: 'Missing required fields.' });
-  }
-  if (typeof amount !== 'number' || amount <= 0) {
-    return res.status(400).json({ success: false, message: 'Amount must be a positive number.' });
-  }
-  if (!['deposit', 'withdrawal'].includes(type)) {
-    return res.status(400).json({ success: false, message: 'Invalid type.' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    // Fetch parent and child
-    const [parent, child] = await Promise.all([
-      prisma.user.findUnique({ where: { id: parentId } }),
-      prisma.user.findUnique({ where: { id: childId } }),
+    const { fromUserId, toUserId, amount, remark } = req.body;
+
+    // Validation
+    if (!fromUserId || !toUserId || !amount || !remark) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    if (fromUserId === toUserId) {
+      return res.status(400).json({ message: 'Cannot transfer to same user' });
+    }
+
+    const parsedAmount = Number(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ message: 'Invalid amount' });
+    }
+
+    // Get both users
+    const [fromUser, toUser] = await Promise.all([
+      prisma.user.findUnique({ where: { id: fromUserId } }),
+      prisma.user.findUnique({ where: { id: toUserId } })
     ]);
-    if (!parent || !child) {
-      return res.status(404).json({ success: false, message: 'Parent or child user not found.' });
-    }
-    if (child.parentId !== parent.id) {
-      return res.status(400).json({ success: false, message: 'Parent-child relationship invalid.' });
+
+    if (!fromUser || !toUser) {
+      return res.status(404).json({ message: 'One or both users not found' });
     }
 
-    let parentNewLimit = parent.creditLimit;
-    let childNewLimit = child.creditLimit;
-    let ledgerType: LedgerType;
-    let ledgerRemark = '';
-
-    if (type === 'withdrawal') {
-      // Withdraw: deduct from child, add to parent
-      if (child.creditLimit < amount) {
-        return res.status(400).json({ success: false, message: 'Child does not have enough limit.' });
-      }
-      parentNewLimit += amount;
-      childNewLimit -= amount;
-      ledgerType = LedgerType.WITHDRAWAL;
-      ledgerRemark = remark || `Withdraw by parent (${parent.name || parent.code || ''})`;
-    } else {
-      // Deposit: deduct from parent, add to child
-      if (parent.creditLimit < amount) {
-        return res.status(400).json({ success: false, message: 'Parent does not have enough limit.' });
-      }
-      parentNewLimit -= amount;
-      childNewLimit += amount;
-      ledgerType = LedgerType.DEPOSIT;
-      ledgerRemark = remark || `Deposit by parent (${parent.name || parent.code || ''})`;
+    // Check if fromUser has sufficient limit
+    if ((fromUser.creditLimit || 0) < parsedAmount) {
+      return res.status(400).json({ 
+        message: 'Insufficient credit limit for transfer',
+        currentLimit: fromUser.creditLimit || 0,
+        requestedAmount: parsedAmount
+      });
     }
 
-    // Transaction: update both users and create both child and parent ledger entries
-    await prisma.user.update({ where: { id: parent.id }, data: { creditLimit: parentNewLimit } });
-    await prisma.user.update({ where: { id: child.id }, data: { creditLimit: childNewLimit } });
-    // Child ledger entry
-    await prisma.ledger.create({
-      data: {
-        userId: child.id,
-        sourceUserId: parent.id,
-        collection: type === 'deposit' ? 'DEPOSIT' : 'WITHDRAWAL',
-        credit: type === 'deposit' ? amount : 0,
-        debit: type === 'withdrawal' ? amount : 0,
-        balanceAfter: childNewLimit,
-        type: ledgerType,
-        remark: ledgerRemark,
-        transactionType: type.toUpperCase(),
-      } as Prisma.LedgerUncheckedCreateInput,
+    // Perform the transfer within a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Deduct from source user
+      const updatedFromUser = await tx.user.update({
+        where: { id: fromUserId },
+        data: { creditLimit: (fromUser.creditLimit || 0) - parsedAmount }
+      });
+
+      // Add to destination user
+      const updatedToUser = await tx.user.update({
+        where: { id: toUserId },
+        data: { creditLimit: (toUser.creditLimit || 0) + parsedAmount }
+      });
+
+      // Create ledger entry for source user (debit)
+      const fromLedgerData = {
+        userId: fromUserId,
+        amount: parsedAmount,
+        type: 'DEBIT',
+        description: `Transfer to ${toUser.username || toUser.name} - ${remark}`,
+        reference: `TRANSFER_OUT_${Date.now()}`,
+        createdBy: 'system'
+      };
+
+      await tx.ledger.create({ data: fromLedgerData });
+
+      // Create ledger entry for destination user (credit)
+      const toLedgerData = {
+        userId: toUserId,
+        amount: parsedAmount,
+        type: 'CREDIT',
+        description: `Transfer from ${fromUser.username || fromUser.name} - ${remark}`,
+        reference: `TRANSFER_IN_${Date.now()}`,
+        createdBy: 'system'
+      };
+
+      await tx.ledger.create({ data: toLedgerData });
+
+      return { updatedFromUser, updatedToUser };
     });
-    // Parent ledger entry
-    const parentLedgerData = {
-      userId: parent.id,
-      sourceUserId: child.id,
-      collection: type === 'deposit' ? 'WITHDRAWAL' : 'DEPOSIT',
-      credit: type === 'deposit' ? 0 : amount,
-      debit: type === 'deposit' ? amount : 0,
-      balanceAfter: parentNewLimit,
-      type: type === 'deposit' ? LedgerType.WITHDRAWAL : LedgerType.DEPOSIT,
-      remark: type === 'deposit'
-        ? `Deposit to ${child.name || child.code || ''}`
-        : `Withdraw from ${child.name || child.code || ''}`,
-      transactionType: type.toUpperCase(),
-    } as Prisma.LedgerUncheckedCreateInput;
-    console.log('Attempting to create parent ledger entry:', parentLedgerData);
-    let parentLedgerEntry = null;
-    try {
-      parentLedgerEntry = await prisma.ledger.create({ data: parentLedgerData });
-      console.log('Parent ledger entry created successfully');
-    } catch (error) {
-      console.error('Parent ledger creation error:', error);
-      return res.status(500).json({ success: false, message: error instanceof Error ? error.message : String(error) });
-    }
 
-    return res.status(200).json({ success: true, parentNewLimit, childNewLimit, parentLedgerEntry });
-  } catch (error: any) {
+    return res.status(200).json({
+      success: true,
+      message: 'Credit limit transferred successfully',
+      data: {
+        fromUser: {
+          id: fromUserId,
+          oldLimit: fromUser.creditLimit || 0,
+          newLimit: result.updatedFromUser.creditLimit,
+          change: -parsedAmount
+        },
+        toUser: {
+          id: toUserId,
+          oldLimit: toUser.creditLimit || 0,
+          newLimit: result.updatedToUser.creditLimit,
+          change: parsedAmount
+        },
+        amount: parsedAmount,
+        remark
+      }
+    });
+
+  } catch (error) {
     console.error('Error in transfer-limit:', error);
-    return res.status(500).json({ success: false, message: 'Internal server error', error: error?.message });
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
   }
 } 

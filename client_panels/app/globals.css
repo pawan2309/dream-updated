@@ -76,8 +76,180 @@ a {
   text-decoration: none;
 }
 
+/* Casino Game Header Styles */
+.theme2 {
+  background: linear-gradient(135deg, #8d0d08 0%, #a52a2a 100%);
+  color: white;
+  border: 1px solid #8d0d08;
+  transition: all 0.3s ease;
+}
+
+/* Text Shadow Utilities */
+.text-shadow-lg {
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.8);
+}
+
+.text-shadow-xl {
+  text-shadow: 0 6px 12px rgba(0, 0, 0, 0.9);
+}
+
+.theme2:hover {
+  background: linear-gradient(135deg, #a52a2a 0%, #8d0d08 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(141, 13, 8, 0.3);
+}
+
+.purple-border {
+  border: 2px solid #8b5cf6;
+  border-radius: 8px;
+}
+
+.heading-sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Flip Countdown Timer Styles */
+.flip-countdown {
+  display: inline-block;
+  font-family: 'Arial', sans-serif;
+}
+
+.flip-countdown-piece {
+  display: inline-block;
+  margin: 0 2px;
+}
+
+.flip-countdown-card {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 60px;
+  background: #2d3748;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.flip-countdown-card-sec {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 60px;
+}
+
+.flip-countdown-card-sec.one {
+  margin-right: 2px;
+}
+
+.flip-countdown-card-sec.two {
+  margin-left: 2px;
+}
+
+.card__top,
+.card__bottom {
+  position: absolute;
+  width: 100%;
+  height: 50%;
+  background: #4a5568;
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.card__top {
+  top: 0;
+  border-bottom: 1px solid #2d3748;
+  border-radius: 4px 4px 0 0;
+}
+
+.card__bottom {
+  bottom: 0;
+  border-radius: 0 0 4px 4px;
+}
+
+.flip-countdown.theme-dark {
+  color: white;
+}
+
+.flip-countdown.size-medium .flip-countdown-card {
+  width: 40px;
+  height: 60px;
+}
+
+.flip-countdown.size-medium .card__top,
+.flip-countdown.size-medium .card__bottom {
+  font-size: 24px;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
   }
+} 
+
+/* Custom Animation Classes for Dropdown */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.slide-in-from-top-2 {
+  animation: slideInFromTop 0.2s ease-out;
+}
+
+/* Dropdown specific styles */
+.dropdown-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.dropdown-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+.dropdown-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dropdown-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 200ms ease-in, transform 200ms ease-in;
 } 

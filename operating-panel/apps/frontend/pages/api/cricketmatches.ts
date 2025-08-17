@@ -11,32 +11,55 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Expires', '0');
 
   try {
-    const ngrokUrl = process.env.NGROK_BASE_URL || 'https://f572e62280f9.ngrok-free.app';
-    console.log('🔍 Local API: Fetching from:', `${ngrokUrl}/provider/cricketmatches`);
+    const apiUrl = 'http://localhost:4001/provider/cricketmatches';
+    console.log('🔍 API: Fetching from local backend:', apiUrl);
     
-    const response = await fetch(`${ngrokUrl}/provider/cricketmatches`, {
+    const response = await fetch(apiUrl, {
       headers: {
-        'ngrok-skip-browser-warning': 'true',
         'Accept': 'application/json',
         'Cache-Control': 'no-cache',
       },
     });
 
-    console.log('🔍 Local API: Response status:', response.status);
-    console.log('🔍 Local API: Response headers:', Object.fromEntries(response.headers.entries()));
+    console.log('🔍 API: Response status:', response.status);
+    console.log('🔍 API: Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('🔍 Local API: Error response:', errorText);
+      console.error('🔍 API: Error response:', errorText);
       throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
 
     const data = await response.json();
-    console.log('🔍 Local API: Data received:', JSON.stringify(data).substring(0, 200) + '...');
-    
-    res.status(200).json(data);
-  } catch (error) {
-    console.error('🔍 Local API: Fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch cricket matches', details: error.message });
+    console.log('🔍 API: Data received:', JSON.stringify(data).substring(0, 200) + '...');
+
+    // --- Transform fixture IDs according to rules ---
+    const transformId = (fixture: any) => {
+      const bevent = fixture?.beventId || fixture?.eventId;
+      const bmarket = fixture?.bmarketId;
+      if (bevent) {
+        return bmarket ? `${bevent}(${bmarket})` : String(bevent);
+      }
+      return fixture.id;
+    };
+
+    const processFixtures = (fixtures: any[]): any[] =>
+      fixtures.map((f) => ({ ...f, id: transformId(f) }));
+
+    let result: any = data;
+
+    if (Array.isArray(data)) {
+      result = processFixtures(data);
+    } else if (data && Array.isArray(data.value)) {
+      result = {
+        ...data,
+        value: processFixtures(data.value),
+      };
+    }
+
+    res.status(200).json(result);
+  } catch (error: any) {
+    console.error('🔍 API: Fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch cricket matches', details: error?.message || 'Unknown error' });
   }
 }

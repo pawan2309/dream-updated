@@ -9,10 +9,25 @@ const REDIS_KEY = 'cricket:fixtures';
 const TTL_SECONDS = 300; // 5 minutes
 
 async function normalizeFixture(raw) {
-  // Adjust mapping per actual API shape; using safe defaults.
+  // Extract primary and market IDs from API fixture
+  const beventId = raw.beventId || raw.eventId || (raw.event && raw.event.id) || raw.id || null;
+  const bmarketId = raw.bmarketId || raw.marketId || raw.bettingMarketId || null;
+  const baseId = beventId || raw.id || raw.matchId || raw._id;
+
+  if (!baseId) {
+    logger.warn('Fixture has no identifiable ID, skipping');
+    return null;
+  }
+
+  // Debug: show extracted IDs (remove or lower level logging in prod)
+  logger.info('NORMALIZE: extracted IDs', { beventId, bmarketId, baseId });
+
   return {
-    external_id: String(raw.id || raw.matchId || raw.eventId || raw._id || ''),
+    id: baseId,                  // keep a stable primary key for UI lists
+    beventId: beventId,
+    bmarketId: bmarketId,
     match_name: raw.name || raw.matchName || `${raw.team1 || ''} vs ${raw.team2 || ''}`.trim(),
+    external_id: String(baseId), // legacy callers may still rely on this field
     team1: raw.team1 || raw.teamA || raw.home || null,
     team2: raw.team2 || raw.teamB || raw.away || null,
     start_time: raw.startTime || raw.start_time || raw.start || raw.startDate || null,
@@ -77,11 +92,17 @@ async function fetchAndStoreFixtures() {
   const { data } = await httpGet(FIXTURES_URL, { timeout: 10000, retries: 2 });
   const list = Array.isArray(data) ? data : (data?.data || data?.matches || []);
 
+  // Log the first raw fixture structure for debugging
+  if (list && list.length > 0) {
+    logger.info('RAW FIXTURE SAMPLE (before normalization):');
+    logger.info(JSON.stringify(list[0], null, 2));
+  }
+
   const normalized = [];
   for (const raw of list) {
     try {
       const f = await normalizeFixture(raw);
-      if (f.external_id) normalized.push(f);
+      if (f && f.beventId && f.bmarketId) normalized.push(f);
     } catch (e) {
       logger.warn('Skipping bad fixture record');
     }

@@ -1,59 +1,36 @@
-import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
-import { prisma } from '../../../../lib/prisma'
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '../../../../lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get token from Authorization header or cookie
-    const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
-                 request.cookies.get('authToken')?.value
+    // TODO: Get actual user ID from authentication
+    const userId = 'temp_user_id'; // Replace with actual user ID from auth
 
-    if (!token) {
-      return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401 }
-      )
-    }
-
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
-
-    // Get user data from database
+    // Get user balance
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        username: true,
-        balance: true,
-        isActive: true
-      }
-    })
+      where: { id: userId },
+      select: { balance: true }
+    });
 
     if (!user) {
       return NextResponse.json(
-        { error: 'User not found' },
+        { success: false, error: 'User not found' },
         { status: 404 }
-      )
-    }
-
-    if (!user.isActive) {
-      return NextResponse.json(
-        { error: 'Account is deactivated' },
-        { status: 403 }
-      )
+      );
     }
 
     return NextResponse.json({
       success: true,
-      balance: user.balance,
-      username: user.username
-    })
+      data: {
+        balance: user.balance
+      }
+    });
 
   } catch (error) {
-    console.error('Error fetching user balance:', error)
+    console.error('Error fetching user balance:', error);
     return NextResponse.json(
-      { error: 'Invalid token or internal server error' },
-      { status: 401 }
-    )
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 } 

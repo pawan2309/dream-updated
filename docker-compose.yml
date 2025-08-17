@@ -3,23 +3,6 @@ services:
     image: redis:7-alpine
     ports:
       - "6380:6379"
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_PASSWORD: 8079
-      POSTGRES_USER: postgres
-      POSTGRES_DB: betting_db
-    ports:
-      # Use 5433 on host to avoid conflicts with local Postgres
-      - "5433:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 5s
   externalapi:
     build:
       context: .
@@ -30,21 +13,20 @@ services:
       REDIS_URL: redis://redis:6379
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      PG_URL: postgres://postgres:8079@postgres:5432/betting_db
+      PG_URL: postgresql://postgres:8079@host.docker.internal:5432/betting_db
       JWT_SECRET: L9vY7z!pQkR#eA1dT3u*Xj5@FbNmC2Ws
       FRONTEND_URL: http://localhost:3000
-      # Disable background systems to ensure main server starts
-      DISABLE_QUEUES: "1"
-      DISABLE_CRON: "1"
-      DISABLE_SOCKETS: "1"
-      DISABLE_WORKERS: "1"
+      # Enable background systems for data population
+      DISABLE_QUEUES: "0"
+      DISABLE_SOCKETS: "0"
+      DISABLE_WORKERS: "0"
     ports:
       - "4001:4001"
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 volumes:
   pgdata:

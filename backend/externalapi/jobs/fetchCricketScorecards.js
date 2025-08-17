@@ -4,7 +4,7 @@ const redis = require('../utils/redisClient');
 const db = require('../utils/pgClient');
 const { publish } = require('../../shared/redisPubSub');
 
-const SCORECARD_URL = process.env.CRICKET_SCORECARD_FEED || 'https://marketsarket.qnsports.live/cricketscorecard';
+const SCORECARD_URL = process.env.CRICKET_SCORECARD_FEED || 'http://172.104.206.227:3000/t10score';
 const REDIS_KEY = 'cricket:scorecards';
 const TTL_SECONDS = 60;
 

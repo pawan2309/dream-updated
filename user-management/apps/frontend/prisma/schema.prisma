@@ -31,25 +31,7 @@ model User {
   profitDistributions ProfitDistribution[]
   parent              User?                @relation("UserHierarchy", fields: [parentId], references: [id])
   children            User[]               @relation("UserHierarchy")
-  userCommissionShare UserCommissionShare?
-}
-
-model UserCommissionShare {
-  id                      String   @id @default(uuid())
-  userId                  String   @unique
-  share                   Float    @default(0)
-  cshare                  Float    @default(0)
-  icshare                 Float    @default(0)
-  casinocommission        Float    @default(0)
-  matchcommission         Float    @default(0)
-  sessioncommission       Float    @default(0)
-  sessionCommission       Float?
-  session_commission_type String   @default("No Comm")
-  commissionType          String?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-  available_share_percent Float    @default(0)
-  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  UserCommissionShare UserCommissionShare?
 }
 
 model Ledger {
@@ -72,12 +54,51 @@ model Ledger {
 }
 
 model Match {
-  id         String      @id @default(uuid())
-  title      String
-  externalId String      @unique
-  status     MatchStatus @default(UPCOMING)
-  createdAt  DateTime    @default(now())
-  bets       Bet[]
+  id          String      @id @default(uuid())
+  title       String
+  externalId  String      @unique
+  status      MatchStatus @default(UPCOMING)
+  createdAt   DateTime    @default(now())
+  apiSource   String?
+  beventId    String?
+  bmarketId   String?
+  isActive    Boolean     @default(true)
+  isCricket   Boolean     @default(true)
+  isDeleted   Boolean     @default(false)
+  isLive      Boolean     @default(false)
+  lastUpdated DateTime    @default(now())
+  matchName   String?
+  matchType   String?
+  rawData     Json?
+  startTime   DateTime?
+  teams       Json?
+  tournament  String?
+  bets        Bet[]
+  odds        MatchOdds[]
+
+  @@index([bmarketId])
+  @@index([beventId])
+  @@index([status])
+  @@index([startTime])
+  @@index([isLive])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model MatchOdds {
+  id          String   @id @default(uuid())
+  matchId     String
+  marketId    String
+  eventId     String
+  oddsData    Json
+  lastUpdated DateTime @default(now())
+  isActive    Boolean  @default(true)
+  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([marketId])
+  @@index([eventId])
+  @@index([lastUpdated])
+  @@index([isActive])
 }
 
 model Bet {
@@ -124,6 +145,40 @@ model LoginSession {
   @@index([isActive])
 }
 
+model UserCommissionShare {
+  id                      String   @id
+  userId                  String   @unique
+  share                   Float    @default(0)
+  cshare                  Float    @default(0)
+  icshare                 Float    @default(0)
+  casinocommission        Float    @default(0)
+  matchcommission         Float    @default(0)
+  sessioncommission       Float    @default(0)
+  sessionCommission       Float?
+  session_commission_type String   @default("No Comm")
+  commissionType          String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime
+  available_share_percent Float    @default(0)
+  User                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CasinoTable {
+  id          Int             @id @default(autoincrement())
+  eventId     BigInt          @map("event_id")
+  name        String          @db.VarChar(50)
+  shortName   String          @map("short_name") @db.VarChar(20)
+  betStatus   CasinoBetStatus @default(OPEN) @map("bet_status")
+  minStake    Decimal         @default(0) @map("min_stake") @db.Decimal(10, 2)
+  maxStake    Decimal         @default(0) @map("max_stake") @db.Decimal(10, 2)
+  dataUrl     String?         @map("data_url")
+  resultUrl   String?         @map("result_url")
+  streamId    Int?            @map("stream_id")
+  lastUpdated DateTime        @default(now()) @updatedAt @map("last_updated")
+
+  @@map("casino_tables")
+}
+
 enum Role {
   ADMIN
   SUPER_ADMIN
@@ -152,10 +207,20 @@ enum MatchStatus {
   UPCOMING
   LIVE
   CLOSED
+  COMPLETED
+  ABANDONED
+  CANCELED
+  OPEN
+  SUSPENDED
 }
 
 enum BetStatus {
   PENDING
   WON
   LOST
+}
+
+enum CasinoBetStatus {
+  OPEN
+  CLOSED
 }

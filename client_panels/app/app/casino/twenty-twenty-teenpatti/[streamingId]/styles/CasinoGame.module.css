@@ -1,0 +1,288 @@
+/* Casino Game Template Styles */
+.casinoGameTemplate {
+  @apply min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Game Header */
+.gameHeader {
+  @apply bg-white bg-opacity-95 backdrop-blur-sm border-b border-gray-200 shadow-sm;
+  backdrop-filter: blur(8px);
+}
+
+.gameTitle {
+  @apply text-2xl font-bold text-gray-800;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.gameId {
+  @apply text-sm text-gray-600 font-mono;
+}
+
+/* Game Content */
+.gameContent {
+  @apply flex-1 p-4;
+  min-height: calc(100vh - 120px);
+}
+
+/* Game Footer */
+.gameFooter {
+  @apply bg-white bg-opacity-95 backdrop-blur-sm border-t border-gray-200 shadow-sm;
+  backdrop-filter: blur(8px);
+}
+
+.gameStatus {
+  @apply flex items-center justify-center gap-2 py-3;
+}
+
+.statusIndicator {
+  @apply w-3 h-3 rounded-full;
+  transition: all 0.3s ease;
+}
+
+.statusIndicator.active {
+  @apply bg-green-400;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+.statusIndicator.inactive {
+  @apply bg-red-400;
+}
+
+.statusIndicator.loading {
+  @apply bg-yellow-400;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.statusText {
+  @apply text-sm font-medium text-gray-700;
+}
+
+/* Responsive Grid Layout */
+.gameGrid {
+  @apply grid gap-6;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .gameGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .gameGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Component Ordering for Mobile */
+.mobileOrder1 { order: 1; }
+.mobileOrder2 { order: 2; }
+.mobileOrder3 { order: 3; }
+
+@media (min-width: 1024px) {
+  .mobileOrder1 { order: 1; }
+  .mobileOrder2 { order: 2; }
+  .mobileOrder3 { order: 3; }
+}
+
+/* Loading States */
+.loadingSpinner {
+  @apply animate-spin rounded-full border-b-2 border-blue-600;
+}
+
+.loadingPulse {
+  @apply animate-pulse bg-gray-200 rounded;
+}
+
+/* Error States */
+.errorContainer {
+  @apply bg-red-50 border border-red-200 rounded-lg p-6 text-center;
+}
+
+.errorIcon {
+  @apply w-16 h-16 mx-auto mb-4;
+}
+
+.errorTitle {
+  @apply text-xl font-bold text-red-800 mb-2;
+}
+
+.errorMessage {
+  @apply text-red-600 mb-4;
+}
+
+.errorActions {
+  @apply flex gap-3 justify-center;
+}
+
+/* Button Styles */
+.primaryButton {
+  @apply px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold rounded-lg;
+  @apply hover:from-purple-400 hover:to-indigo-500 transition-all duration-300;
+  @apply focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2;
+}
+
+.secondaryButton {
+  @apply px-6 py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-semibold rounded-lg;
+  @apply hover:from-gray-400 hover:to-gray-500 transition-all duration-300;
+  @apply focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+}
+
+.dangerButton {
+  @apply px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-lg;
+  @apply hover:from-red-400 hover:to-red-500 transition-all duration-300;
+  @apply focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+}
+
+/* Card Styles */
+.gameCard {
+  @apply bg-white bg-opacity-95 backdrop-blur-sm rounded-xl p-6 shadow-lg;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+.gameCard:hover {
+  @apply shadow-xl transform scale-[1.02];
+}
+
+/* Status Items */
+.statusGrid {
+  @apply grid gap-4 w-full;
+}
+
+@media (min-width: 640px) {
+  .statusGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .statusGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.statusItem {
+  @apply text-center p-3 rounded-lg;
+  transition: all 0.2s ease;
+}
+
+.statusItem:hover {
+  @apply bg-gray-50;
+}
+
+.statusLabel {
+  @apply text-xs text-gray-600 font-medium mb-1;
+}
+
+.statusValue {
+  @apply text-lg font-bold;
+}
+
+.statusIndicator {
+  @apply w-2 h-2 rounded-full inline-block mr-2;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Responsive Typography */
+.responsiveText {
+  @apply text-base;
+}
+
+@media (min-width: 640px) {
+  .responsiveText {
+    @apply text-lg;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsiveText {
+    @apply text-xl;
+  }
+}
+
+/* Utility Classes */
+.textShadow {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.glassEffect {
+  @apply bg-white bg-opacity-95 backdrop-blur-sm;
+  backdrop-filter: blur(8px);
+}
+
+.hoverScale {
+  transition: transform 0.2s ease;
+}
+
+.hoverScale:hover {
+  transform: scale(1.05);
+}
+
+/* Focus States */
+.focusRing {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+}
+
+/* Dark Mode Support (Ready for future implementation) */
+@media (prefers-color-scheme: dark) {
+  .casinoGameTemplate {
+    @apply bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900;
+  }
+  
+  .gameHeader,
+  .gameFooter {
+    @apply bg-gray-800 bg-opacity-95 border-gray-700;
+  }
+  
+  .gameCard {
+    @apply bg-gray-800 bg-opacity-95;
+  }
+  
+  .gameTitle {
+    @apply text-white;
+  }
+  
+  .statusText {
+    @apply text-gray-300;
+  }
+}

@@ -15,7 +15,7 @@ export default function ChangePassword() {
   }
 
   return (
-    <div className="min-h-dvh bg-white relative">
+    <div className="min-h-dvh bg-white relative pt-[60px]">
       <Header />
       <div className="flex-1 p-4">
         <div className="max-w-md mx-auto">

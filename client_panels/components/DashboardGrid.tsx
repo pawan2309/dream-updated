@@ -5,7 +5,7 @@ import Link from 'next/link'
 export default function DashboardGrid() {
   const menuItems = [
     {
-      title: 'IN PLAY',
+      title: 'CRICKET',
       subtitle: 'LIVE SPORTS',
       description: 'CRICKET SOCCER',
       href: '/app/inplay',
@@ -16,7 +16,7 @@ export default function DashboardGrid() {
       subtitle: 'LIVE CASINO',
       description: '',
       href: '/app/casino',
-      gif: '/images/indian-casino.gif?v=2'
+      gif: '/images/2.gif',
     },
     {
       title: 'MY LEDGER',

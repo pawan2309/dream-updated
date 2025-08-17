@@ -14,7 +14,19 @@ export type Role = keyof typeof ROLE_HIERARCHY;
 
 // Function to get hierarchy index
 export function getHierarchyIndex(role: string): number {
-  return ROLE_HIERARCHY[role as Role];
+  // Server-side logging
+  if (typeof window === 'undefined') {
+    console.log('🔵 [SSR] getHierarchyIndex called with role:', role);
+  }
+  
+  console.log('🔵 getHierarchyIndex called with role:', role);
+  const index = ROLE_HIERARCHY[role as Role];
+  console.log('🔵 Role hierarchy index:', index);
+  if (index === undefined) {
+    console.warn(`🔴 Invalid role: ${role}`);
+    return 0; // Return lowest priority for invalid roles
+  }
+  return index;
 }
 
 // Function to check if creation is direct subordinate or skip hierarchy
@@ -141,7 +153,23 @@ export function canAccessFeature(userRole: string, feature: string): boolean {
 
 // Function to get role-based navigation items
 export function getRoleBasedNavigation(userRole: string) {
+  // Server-side logging
+  if (typeof window === 'undefined') {
+    console.log('🔵 [SSR] getRoleBasedNavigation called with role:', userRole);
+  }
+  
+  console.log('🔵 getRoleBasedNavigation called with role:', userRole);
+  if (!userRole || typeof userRole !== 'string') {
+    console.warn('🔴 Invalid userRole provided to getRoleBasedNavigation:', userRole);
+    return {};
+  }
+  
   const userIndex = getHierarchyIndex(userRole);
+  console.log('🔵 User hierarchy index:', userIndex);
+  if (userIndex === 0) {
+    console.warn(`🔴 Invalid role "${userRole}" provided to getRoleBasedNavigation`);
+    return {};
+  }
   const allNavigation = {
     'USER DETAILS': [
       { label: 'Super Admin ', href: '/user_details/super_admin', icon: 'fas fa-user-shield', role: 'SUPER_ADMIN' },
@@ -214,5 +242,7 @@ export function getRoleBasedNavigation(userRole: string) {
       filteredNavigation[section] = filteredLinks;
     }
   });
+  
+  console.log('🔵 Final filtered navigation:', filteredNavigation);
   return filteredNavigation;
 } 

@@ -25,9 +25,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         exposure: limits.exposure || 0,
         // Add other limit fields as needed
       },
-      include: {
-        userCommissionShare: true
-      }
+              include: {
+          UserCommissionShare: true
+        }
     });
 
     return res.status(200).json({

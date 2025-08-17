@@ -25,6 +25,7 @@ const previewRoute = require('./routes/preview');
 const refreshRoutes = require('./routes/refreshRoutes');
 const adminRawRoutes = require('./routes/adminRaw');
 const { router: metricsRouter } = require('./routes/metrics');
+const fixturesApiRoutes = require('./routes/fixturesApi');
 
 // Central sockets registrar
 const registerSockets = require('./sockets');
@@ -54,16 +55,48 @@ class ExternalApiServer {
             await database.connect();
             logger.info('✅ Database connected');
 
-            // Initialize Redis connection
+            // Initialize Redis connection FIRST
             await redisClient.connect();
             logger.info('✅ Redis connected');
 
+            // ------------------------------------------------------------------
+            // Start background cache refresh for cricket fixtures
+            // ------------------------------------------------------------------
+            try {
+                const { startCricketFixturesCache } = require('./services/cricketFixturesCache');
+                await startCricketFixturesCache();
+                logger.info('✅ Cricket fixtures cache service initialised');
+            } catch (cacheError) {
+                logger.error('❌ Failed to initialise cricket fixtures cache service:', cacheError);
+            }
+
+            // Setup middleware
+            this.setupMiddleware();
+
+            // Setup routes AFTER Redis is connected
+            this.setupRoutes();
+
             // Initialize BullMQ queues (if not disabled)
-            if (!process.env.DISABLE_QUEUES) {
-                this.queues = await initializeQueues();
-                logger.info('✅ BullMQ queues initialized');
+            if (process.env.DISABLE_BULLMQ !== 'true') {
+                try {
+                    const fixturesQueue = require('./queues/fixturesQueue');
+                    const fixturesQueueInstance = new fixturesQueue();
+                    
+                    // Initialize fixtures queue
+                    await fixturesQueueInstance.initialize();
+                    
+                    // Schedule recurring jobs
+                    await fixturesQueueInstance.scheduleRecurringJobs();
+                    
+                    // Store reference for cleanup
+                    this.app.locals.fixturesQueue = fixturesQueueInstance;
+                    
+                    logger.info('✅ Fixtures queue initialized');
+                } catch (error) {
+                    logger.error('❌ Failed to initialize fixtures queue:', error.message);
+                }
             } else {
-                logger.info('⏭️ BullMQ queues disabled by environment variable');
+                logger.info('⏭️ Fixtures queue disabled by environment variable');
             }
 
             // Initialize Cron scheduler (if not disabled)
@@ -73,12 +106,6 @@ class ExternalApiServer {
             } else {
                 logger.info('⏭️ Cron scheduler disabled by environment variable');
             }
-
-            // Setup middleware
-            this.setupMiddleware();
-
-            // Setup routes
-            this.setupRoutes();
 
             // Setup socket handlers (if not disabled)
             if (!process.env.DISABLE_SOCKETS) {
@@ -125,11 +152,10 @@ class ExternalApiServer {
 
         this.app.use((req, res, next) => {
             logger.info(`${req.method} ${req.path} - ${req.ip}`);
+            logger.info(`🔍 Request URL: ${req.originalUrl}`);
+            logger.info(`🔍 Request path: ${req.path}`);
             next();
         });
-
-        // Metrics
-        this.app.use(metricsRouter);
     }
 
     setupRoutes() {
@@ -137,14 +163,29 @@ class ExternalApiServer {
             res.status(200).json({ status: 'OK', timestamp: new Date().toISOString(), service: 'external-api' });
         });
 
-        this.app.use(healthRoute);
-        this.app.use(cricketSnapshotRoute);
+        // Public health routes (no auth required)
+        this.app.use('/health', healthRoute);
+        
+        // Public provider routes (no auth required) - MUST BE FIRST
+        this.app.use('/provider', require('./routes/publicProvider'));
+
+        // Public cricket routes (no auth required)
+        this.app.use('/cricket', cricketSnapshotRoute);
 
         // Public auth routes (must be before jwtAuth())
         this.app.use('/auth', require('../auth/authRoutes'));
+        
+        // Public POC auth routes (no auth required)
+        this.app.use('/public-auth', require('./routes/publicAuth'));
 
         // Public casino routes (no auth required)
         this.app.use('/api/casino', require('./routes/casino'));
+
+        // Public odds API routes (no auth required)
+        this.app.use('/api/odds', require('./routes/odds'));
+
+        // Debug routes for troubleshooting (PUBLIC - no auth required)
+        this.app.use('/debug', require('./routes/debug'));
 
         // Protected routes
         this.app.use(jwtAuth());
@@ -152,15 +193,23 @@ class ExternalApiServer {
         this.app.use(refreshRoutes);
         this.app.use(adminRawRoutes);
 
-        this.app.use('/api/status', statusRoutes);
+        // Add fixtures API routes
+        this.app.use('/api/fixtures', fixturesApiRoutes);
 
-        this.app.use('*', (req, res) => {
-            res.status(404).json({ error: 'Route not found', path: req.originalUrl });
-        });
+        // Metrics endpoint (protected)
+        this.app.use('/metrics', metricsRouter);
+
+        this.app.use('/api/status', statusRoutes);
 
         this.app.use((error, req, res, next) => {
             logger.error('Unhandled error:', error);
             res.status(500).json({ error: 'Internal server error', message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong' });
+        });
+
+        // Catch-all route for unmatched paths (must be last)
+        this.app.use('*', (req, res) => {
+            logger.info(`404 - Route not found: ${req.originalUrl}`);
+            res.status(404).json({ error: 'Route not found', path: req.originalUrl });
         });
     }
 
@@ -171,8 +220,8 @@ class ExternalApiServer {
 
     async startServer() {
         return new Promise((resolve, reject) => {
-            this.server.listen(this.port, () => {
-                logger.info(`🌐 Server listening on port ${this.port}`);
+            this.server.listen(this.port, '0.0.0.0', () => {
+                logger.info(`🌐 Server listening on 0.0.0.0:${this.port}`);
                 resolve();
             });
 
@@ -208,6 +257,16 @@ class ExternalApiServer {
 
                     await database.disconnect();
                     logger.info('✅ Database disconnected');
+
+                    // Close fixtures queue
+                    if (this.app.locals.fixturesQueue) {
+                        try {
+                            await this.app.locals.fixturesQueue.close();
+                            logger.info('✅ Fixtures queue closed');
+                        } catch (error) {
+                            logger.error('❌ Error closing fixtures queue:', error.message);
+                        }
+                    }
 
                     logger.info('🎯 Graceful shutdown completed');
                     process.exit(0);

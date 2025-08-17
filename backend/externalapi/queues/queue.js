@@ -5,9 +5,9 @@ const logger = require('../utils/logger');
 // Redis connection for BullMQ
 const redisConnection = new Redis({
     host: process.env.REDIS_HOST || 'localhost',
-    port: process.env.REDIS_PORT || 6379,
+    port: parseInt(process.env.REDIS_PORT, 10) || 6380,
     password: process.env.REDIS_PASSWORD,
-    db: process.env.REDIS_DB || 0,
+    db: parseInt(process.env.REDIS_DB, 10) || 0,
     retryDelayOnFailover: 100,
     maxRetriesPerRequest: 3,
     lazyConnect: true
@@ -37,6 +37,12 @@ const queueConfigs = {
     }
 };
 
+// Log processor imports for debugging
+logger.info('🔍 Queue configurations loaded:');
+for (const [key, config] of Object.entries(queueConfigs)) {
+    logger.info(`  ${key}: ${config.name} (concurrency: ${config.concurrency}, processor: ${typeof config.processor})`);
+}
+
 class QueueManager {
     constructor() {
         this.queues = {};
@@ -46,6 +52,21 @@ class QueueManager {
     async initializeQueues() {
         try {
             logger.info('🔄 Initializing BullMQ queues...');
+            logger.info('🔍 Redis connection status:', redisConnection.status);
+            logger.info('🔍 Redis connection config:', {
+                host: process.env.REDIS_HOST || 'localhost',
+                port: parseInt(process.env.REDIS_PORT, 10) || 6380,
+                db: parseInt(process.env.REDIS_DB, 10) || 0
+            });
+
+            // Ensure Redis connection is established
+            if (redisConnection.status !== 'ready') {
+                logger.info('🔌 Connecting to Redis...');
+                await redisConnection.connect();
+                logger.info('✅ Redis connected successfully');
+            } else {
+                logger.info('✅ Redis already connected');
+            }
 
             // Create queues
             for (const [key, config] of Object.entries(queueConfigs)) {
@@ -81,20 +102,35 @@ class QueueManager {
     }
 
     async createWorkers() {
+        logger.info('👷 Creating workers...');
+        
         for (const [key, config] of Object.entries(queueConfigs)) {
-            const worker = new Worker(config.name, config.processor, {
-                connection: redisConnection,
+            logger.info(`🔍 Creating worker for ${key}:`, {
+                name: config.name,
                 concurrency: config.concurrency,
-                autorun: true
+                processor: typeof config.processor
             });
+            
+            try {
+                const worker = new Worker(config.name, config.processor, {
+                    connection: redisConnection,
+                    concurrency: config.concurrency,
+                    autorun: true
+                });
 
-            this.workers[key] = worker;
+                this.workers[key] = worker;
 
-            // Setup worker event listeners
-            this.setupWorkerEventListeners(worker, key);
+                // Setup worker event listeners
+                this.setupWorkerEventListeners(worker, key);
 
-            logger.info(`✅ Created worker for ${config.name} with concurrency ${config.concurrency}`);
+                logger.info(`✅ Created worker for ${config.name} with concurrency ${config.concurrency}`);
+            } catch (error) {
+                logger.error(`❌ Failed to create worker for ${key}:`, error);
+                throw error;
+            }
         }
+        
+        logger.info(`✅ Created ${Object.keys(this.workers).length} workers successfully`);
     }
 
     setupQueueEventListeners() {
@@ -159,7 +195,7 @@ class QueueManager {
 
             const job = await this.queues[queueName].add(jobType, data, {
                 ...options,
-                jobId: `${jobType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                jobId: `${jobType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${process.pid}`
             });
 
             logger.info(`📝 Added job ${job.id} to ${queueName} queue`);
@@ -242,6 +278,29 @@ const queueManager = new QueueManager();
 async function initializeQueues() {
     return await queueManager.initializeQueues();
 }
+
+// Graceful shutdown handling
+process.on('SIGINT', async () => {
+    logger.info('🛑 Received SIGINT, shutting down gracefully...');
+    try {
+        await closeQueues();
+        process.exit(0);
+    } catch (error) {
+        logger.error('❌ Error during graceful shutdown:', error);
+        process.exit(1);
+    }
+});
+
+process.on('SIGTERM', async () => {
+    logger.info('🛑 Received SIGTERM, shutting down gracefully...');
+    try {
+        await closeQueues();
+        process.exit(0);
+    } catch (error) {
+        logger.error('❌ Error during graceful shutdown:', error);
+        process.exit(1);
+    }
+});
 
 // Export utility functions
 async function addJob(queueName, jobType, data, options) {

@@ -1,0 +1,37 @@
+{
+  "name": "betting-external-api",
+  "version": "1.0.0",
+  "description": "External API service for betting platform",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "compression": "^1.7.4",
+    "socket.io": "^4.7.2",
+    "redis": "^4.6.7",
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1",
+    "axios": "^1.5.0",
+    "bullmq": "^4.12.0",
+    "node-cron": "^3.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.1",
+    "moment": "^2.29.4",
+    "lodash": "^4.17.21",
+    "express-rate-limit": "^7.1.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["betting", "api", "cricket", "odds"],
+  "author": "",
+  "license": "ISC"
+}

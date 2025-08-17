@@ -1,6 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../lib/prisma';
 
+export const runtime = 'nodejs';
+
 // Function to get role prefix (3 letters)
 function getRolePrefix(role: string): string {
   const rolePrefixes: { [key: string]: string } = {
@@ -87,7 +89,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
               name: true,
             }
           },
-          userCommissionShare: {
+          UserCommissionShare: {
             select: {
               share: true,
               available_share_percent: true,
@@ -162,9 +164,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(400).json({ success: false, message: `Invalid role: ${role}. Valid roles are: ${validRoles.join(', ')}` });
       }
 
-      // Validate contact number if provided
-      if (contactno && (contactno.length < 10 || contactno.length > 15)) {
-        return res.status(400).json({ success: false, message: 'Contact number must be between 10 and 15 digits' });
+      // Validate contact number if provided - allow any numerical input
+      if (contactno && !/^\d+$/.test(contactno)) {
+        return res.status(400).json({ success: false, message: 'Contact number must contain only numbers' });
       }
 
       // Get existing usernames and codes
@@ -189,7 +191,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       if (session) {
         try {
           const jwt = require('jsonwebtoken');
-          const decoded = jwt.verify(session, process.env.JWT_SECRET || 'dev_secret');
+          const JWT_SECRET = process.env.JWT_SECRET;
+        if (!JWT_SECRET) {
+          return res.status(500).json({ success: false, message: 'Server configuration error' });
+        }
+        const decoded = jwt.verify(session, JWT_SECRET);
           creatorId = decoded.user?.id || null;
         } catch (e) {
           console.error('Error decoding session:', e);
@@ -235,7 +241,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       // Validate share hierarchy - child shares cannot exceed parent shares
       if (parentUser) {
         // Get parent's commission share data
-        const parentCommissionShare = await prisma.userCommissionShare.findUnique({
+        const parentCommissionShare = await prisma.UserCommissionShare.findUnique({
           where: { userId: parentUser.id }
         });
 
@@ -373,7 +379,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
          }
 
          if (Object.keys(parentUpdateData).length > 0) {
-           await prisma.userCommissionShare.update({
+           await prisma.UserCommissionShare.update({
              where: { userId: parentUser.id },
              data: parentUpdateData
            });
@@ -390,7 +396,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
        }
 
                console.log('Creating commission share with data:', commissionShareData);
-               await prisma.userCommissionShare.create({
+               await prisma.UserCommissionShare.create({
           data: commissionShareData
         });
         console.log('Commission share created successfully for user:', user.id);

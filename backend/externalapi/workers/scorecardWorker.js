@@ -1,28 +1,213 @@
 const logger = require('../utils/logger');
 const redis = require('../utils/redis');
-const database = require('../utils/database');
+const config = require('../../config');
 
-async function scorecardWorker(job) {
-    const { name, data } = job;
-    
+/**
+ * Scorecard Worker - Fetches detailed cricket scorecards from external APIs
+ * This worker processes jobs from the scorecard-data-queue
+ */
+async function processScorecardJob(job) {
     try {
-        logger.info(`👷 Processing scorecard job: ${name} (ID: ${job.id})`);
+        logger.info(`🔄 Processing scorecard job ${job.id} of type ${job.name}`);
         
-        switch (name) {
-            case 'process-cricket-scorecards':
-                return await processCricketScorecards(data);
-            
-            case 'process-scorecard-data':
-                return await processScorecardData(data);
-            
+        const { data } = job;
+        const { jobType, eventId, matchId, forceRefresh = false } = data;
+        
+        let result;
+        
+        switch (jobType) {
+            case 'fetchScorecard':
+                if (!eventId) {
+                    throw new Error('eventId required for fetchScorecard job');
+                }
+                result = await fetchScorecard(eventId, forceRefresh);
+                break;
+                
+            case 'fetchBM':
+                if (!eventId) {
+                    throw new Error('eventId required for fetchBM job');
+                }
+                result = await fetchBM(eventId, forceRefresh);
+                break;
+                
+            case 'fetchAllScorecards':
+                result = await fetchAllScorecards(forceRefresh);
+                break;
+                
             default:
-                throw new Error(`Unknown scorecard job type: ${name}`);
+                throw new Error(`Unknown scorecard job type: ${jobType}`);
         }
         
+        logger.info(`✅ Scorecard job ${job.id} completed successfully`);
+        return result;
+        
     } catch (error) {
-        logger.error(`❌ Scorecard worker failed for job ${job.id}:`, error);
+        logger.error(`❌ Scorecard job ${job.id} failed:`, error);
+        throw error; // Re-throw for BullMQ retry handling
+    }
+}
+
+/**
+ * Fetch detailed scorecard for a specific match
+ */
+async function fetchScorecard(eventId, forceRefresh = false) {
+    try {
+        const cacheKey = `scorecard:${eventId}`;
+        
+        // Check cache first (unless force refresh)
+        if (!forceRefresh) {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                logger.info(`📋 Returning cached scorecard for event ${eventId}`);
+                return cached;
+            }
+        }
+        
+        logger.info(`🌐 Fetching fresh scorecard for event ${eventId}...`);
+        
+        // Fetch from external API
+        const response = await fetch(`${config.api.cricketScorecardDetailed}${eventId}`);
+        if (!response.ok) {
+            throw new Error(`API responded with status: ${response.status}`);
+        }
+        
+        const scorecard = await response.json();
+        
+        // Normalize and cache the data
+        const normalized = normalizeScorecard(scorecard, eventId);
+        await redis.set(cacheKey, normalized, config.ttl.cricketScorecard);
+        
+        logger.info(`✅ Fetched and cached scorecard for event ${eventId}`);
+        return normalized;
+        
+    } catch (error) {
+        logger.error(`❌ Failed to fetch scorecard for event ${eventId}:`, error);
         throw error;
     }
+}
+
+/**
+ * Fetch BM (Bookmaker) data for a specific match
+ */
+async function fetchBM(eventId, forceRefresh = false) {
+    try {
+        const cacheKey = `bm:${eventId}`;
+        
+        // Check cache first (unless force refresh)
+        if (!forceRefresh) {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                logger.info(`📋 Returning cached BM data for event ${eventId}`);
+                return cached;
+            }
+        }
+        
+        logger.info(`🌐 Fetching fresh BM data for event ${eventId}...`);
+        
+        // Fetch from external API
+        const response = await fetch(`${config.api.cricketBM}${eventId}`);
+        if (!response.ok) {
+            throw new Error(`API responded with status: ${response.status}`);
+        }
+        
+        const bmData = await response.json();
+        
+        // Cache the BM data
+        await redis.set(cacheKey, bmData, config.ttl.cricketScorecard);
+        
+        logger.info(`✅ Fetched and cached BM data for event ${eventId}`);
+        return bmData;
+        
+    } catch (error) {
+        logger.error(`❌ Failed to fetch BM data for event ${eventId}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Fetch all available scorecards
+ */
+async function fetchAllScorecards(forceRefresh = false) {
+    try {
+        const cacheKey = 'scorecards:all';
+        
+        // Check cache first (unless force refresh)
+        if (!forceRefresh) {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                logger.info('📋 Returning cached scorecards data');
+                return cached;
+            }
+        }
+        
+        logger.info('🌐 Fetching fresh scorecards data...');
+        
+        // Get list of active matches from fixtures cache
+        const fixtures = await redis.get('cricket:fixtures');
+        if (!fixtures || !Array.isArray(fixtures)) {
+            logger.warn('⚠️ No fixtures available, cannot fetch scorecards');
+            return [];
+        }
+        
+        // Fetch scorecards for active matches
+        const scorecards = [];
+        const activeMatches = fixtures.filter(fixture => 
+            fixture.status === 'live' || fixture.status === 'in_progress'
+        );
+        
+        for (const match of activeMatches.slice(0, 10)) { // Limit to 10 concurrent requests
+            try {
+                const scorecard = await fetchScorecard(match.id, forceRefresh);
+                if (scorecard) {
+                    scorecards.push(scorecard);
+                }
+            } catch (error) {
+                logger.warn(`⚠️ Failed to fetch scorecard for match ${match.id}:`, error.message);
+            }
+        }
+        
+        // Cache all scorecards
+        await redis.set(cacheKey, scorecards, config.ttl.cricketScorecard);
+        
+        logger.info(`✅ Fetched and cached ${scorecards.length} scorecards`);
+        return scorecards;
+        
+    } catch (error) {
+        logger.error('❌ Failed to fetch all scorecards:', error);
+        throw error;
+    }
+}
+
+/**
+ * Normalize scorecard data structure
+ */
+function normalizeScorecard(scorecard, eventId) {
+    if (!scorecard) {
+        return null;
+    }
+    
+    return {
+        eventId: eventId,
+        matchInfo: {
+            name: scorecard.matchName || scorecard.name,
+            status: scorecard.status || 'unknown',
+            venue: scorecard.venue || '',
+            startTime: scorecard.startTime || scorecard.startDate,
+            lastUpdated: new Date().toISOString()
+        },
+        teams: scorecard.teams || scorecard.scores || [],
+        innings: scorecard.innings || [],
+        summary: {
+            totalRuns: scorecard.totalRuns || 0,
+            totalWickets: scorecard.totalWickets || 0,
+            overs: scorecard.overs || 0,
+            runRate: scorecard.runRate || 0
+        },
+        extras: scorecard.extras || {},
+        fallOfWickets: scorecard.fallOfWickets || [],
+        partnerships: scorecard.partnerships || [],
+        // Add more fields as needed based on your API response
+    };
 }
 
 async function processCricketScorecards(data) {
@@ -142,4 +327,4 @@ async function updateMatchStatistics(scorecardData) {
     }
 }
 
-module.exports = scorecardWorker; 
+module.exports = processScorecardJob; 

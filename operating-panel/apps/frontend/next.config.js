@@ -27,7 +27,7 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    const base = process.env.NGROK_BASE_URL || process.env.API_BASE_URL || 'http://localhost:4001';
+    const base = process.env.API_BASE_URL || 'http://localhost:4001';
     console.log('🔧 Next.js rewrite base:', base);
     
     return [

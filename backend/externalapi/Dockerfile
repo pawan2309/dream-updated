@@ -1,18 +1,21 @@
-# syntax=docker/dockerfile:1
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Install production deps first for caching (scoped path)
-COPY backend/externalapi/package.json ./backend/externalapi/package.json
-RUN cd backend/externalapi && npm install --omit=dev
+# Copy package files from externalapi directory
+COPY backend/externalapi/package*.json ./
 
-# Copy entire backend to keep relative imports intact
-COPY backend ./backend
+# Install dependencies
+RUN npm install
 
-ENV NODE_ENV=production
-ENV NODE_PATH=/app/backend/externalapi/node_modules
+# Copy the entire backend directory structure
+COPY backend/ ./backend/
+
+# Set working directory to externalapi
+WORKDIR /app/backend/externalapi
+
+# Expose port
 EXPOSE 4001
 
-WORKDIR /app/backend/externalapi
-CMD ["node", "index.js"]
+# Start the application
+CMD ["npm", "run", "dev"]

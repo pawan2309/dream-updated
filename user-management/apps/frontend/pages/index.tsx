@@ -14,10 +14,40 @@ export const getServerSideProps = async () => {
   return { props: {} };
 };
 
-
-
 // ===================== Main Homepage Component =====================
 const IndexPage = () => {
+  const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsClient(true);
+    setIsLoading(false);
+  }, []);
+
+  // Show loading state during SSR and initial client render
+  if (!isClient || isLoading) {
+    return (
+      <Layout>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '50vh',
+          fontSize: '18px',
+          color: '#666'
+        }}>
+          Loading...
+        </div>
+      </Layout>
+    );
+  }
+
+  return <ClientIndexPage />;
+};
+
+// Separate client-side component that uses hooks
+const ClientIndexPage = () => {
+  console.log('🔵 IndexPage component rendering - Client side');
   const router = useRouter();
   
   // -------- State Definitions --------
@@ -31,13 +61,11 @@ const IndexPage = () => {
 
   // -------- Set Site Name and Brand on Mount --------
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      const site = hostname.split('.')[1]?.toUpperCase() || 'SITE';
-      setSiteName(hostname);
-      setBrandName(site);
-      document.title = site;
-    }
+    const hostname = window.location.hostname;
+    const site = hostname.split('.')[1]?.toUpperCase() || 'SITE';
+    setSiteName(hostname);
+    setBrandName(site);
+    document.title = site;
   }, []);
 
   // -------- Get User Data from Session --------

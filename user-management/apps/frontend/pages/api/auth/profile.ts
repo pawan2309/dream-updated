@@ -1,9 +1,9 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { parse } from 'cookie';
 import { prisma } from '../../../lib/prisma';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'L9vY7z!pQkR#eA1dT3u*Xj5@FbNmC2Ws';
 const SESSION_COOKIE = 'betx_session';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -25,9 +25,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Fetch complete user data including commission details from database
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        userCommissionShare: true
-      }
+              include: {
+          UserCommissionShare: true
+        }
     });
 
     if (!user) {

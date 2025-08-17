@@ -4,7 +4,7 @@ const redis = require('../utils/redisClient');
 const { publish } = require('../../shared/redisPubSub');
 
 // Base endpoint. Append the eventId query param to this URL.
-const BASE_URL = process.env.CRICKET_DETAILED_SCORECARD_URL || 'https://data.shamexch.xyz/getscorecard?eventId=';
+const BASE_URL = process.env.CRICKET_DETAILED_SCORECARD_URL || 'http://172.104.206.227:3000/t10score?marketId=';
 const TTL_SECONDS = parseInt(process.env.CRICKET_DETAILED_SCORECARD_TTL || '60', 10);
 
 function buildRedisKey(eventId) {

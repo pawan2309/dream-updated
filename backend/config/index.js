@@ -14,14 +14,14 @@ const config = {
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
 
   // Redis
-  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  redisUrl: process.env.REDIS_URL || 'redis://localhost:6380',
   redisHost: process.env.REDIS_HOST || 'localhost',
-  redisPort: number(process.env.REDIS_PORT, 6379),
+  redisPort: number(process.env.REDIS_PORT, 6380),
   redisPassword: process.env.REDIS_PASSWORD,
   redisDb: number(process.env.REDIS_DB, 0),
 
   // Postgres
-  pgUrl: process.env.PG_URL || process.env.DATABASE_URL || 'postgresql://localhost:5432/betting',
+  pgUrl: process.env.PG_URL || process.env.DATABASE_URL || 'postgresql://postgres:8079@localhost:5432/betting_db',
 
   // JWT
   jwtSecret: process.env.JWT_SECRET || '',
@@ -38,7 +38,7 @@ const config = {
   api: {
     cricketFixtures: process.env.CRICKET_FIXTURES_URL || 'https://marketsarket.qnsports.live/cricketmatches',
     cricketOddsFeed: process.env.CRICKET_ODDS_FEED || process.env.CRICKET_ODDS_URL || 'https://marketsarket.qnsports.live/odds',
-    cricketScorecardDetailed: process.env.CRICKET_DETAILED_SCORECARD_URL || 'https://data.shamexch.xyz/getscorecard?eventId=',
+    cricketScorecardDetailed: process.env.CRICKET_DETAILED_SCORECARD_URL || 'http://172.104.206.227:3000/t10score?marketId=',
     cricketBM: process.env.CRICKET_BM_URL || 'https://data.shamexch.xyz/getbm?eventId=',
     casinoResults: process.env.CASINO_RESULTS_FEED || 'https://marketsarket.qnsports.live/casinoresult'
   },

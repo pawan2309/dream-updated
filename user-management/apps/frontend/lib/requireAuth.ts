@@ -3,7 +3,10 @@ import jwt from 'jsonwebtoken';
 import { parse, serialize } from 'cookie';
 
 const SESSION_COOKIE = 'betx_session';
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable not set');
+}
 const SESSION_DURATION = 10 * 60; // 10 minutes in seconds
 
 export const requireAuth = (): GetServerSideProps => async (context) => {

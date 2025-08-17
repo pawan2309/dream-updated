@@ -70,7 +70,8 @@ a[href="#"] {
   left: 0 !important;
   right: 0 !important;
   z-index: 1030 !important;
-  background: white !important;
+  background: #023E8A !important;
+  color: #CAF0F8 !important;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
 }
 
@@ -96,193 +97,33 @@ body {
   scroll-behavior: auto !important;
 }
 
-/* Override any AdminLTE scroll behavior */
-* {
-  scroll-behavior: auto !important;
+/* Form validation styles */
+.is-invalid {
+  border-color: #dc3545 !important;
 }
 
-/* Prevent any automatic scrolling */
-html, body {
-  scroll-behavior: auto !important;
-  scroll-padding-top: 0 !important;
-}
-
-/* Disable smooth scrolling globally */
-* {
-  scroll-behavior: auto !important;
-}
-
-/* Force instant scroll behavior */
-html {
-  scroll-behavior: auto !important;
-}
-
-body {
-  scroll-behavior: auto !important;
-}
-
-/* Prevent AdminLTE from auto-scrolling */
-.wrapper,
-.content-wrapper,
-.main-content {
-  scroll-behavior: auto !important;
-}
-
-/* Force navbar to stay fixed regardless of AdminLTE */
-.main-header,
-.navbar.main-header,
-.main-header.navbar,
-.wrapper .main-header,
-.hold-transition .main-header,
-.sidebar-mini .main-header {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  z-index: 1030 !important;
-  transform: none !important;
-  transition: none !important;
-  background: white !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-}
-
-/* Ensure content doesn't jump */
-.content-wrapper {
-  margin-top: 60px !important;
-  padding-top: 0 !important;
-  min-height: calc(100vh - 60px) !important;
-}
-
-/* Add spacing between navbar and page content */
-.content {
-  padding-top: 20px !important;
-}
-
-/* Prevent content from jumping when navbar is fixed */
-.wrapper {
-  padding-top: 0 !important;
-}
-
-/* Ensure proper spacing for fixed navbar */
-body {
-  padding-top: 0 !important;
-}
-
-/* Force navbar to always be visible */
-.main-header {
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-/* Prevent navbar from resetting position */
-.wrapper {
-  padding-top: 0;
-}
-
-/* Ensure sidebar stays in position */
-.main-sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  z-index: 1031;
-}
-
-/* Adjust content area for fixed sidebar */
-.content-wrapper {
-  margin-left: 250px;
-  transition: margin-left 0.3s ease-in-out;
-}
-
-/* Ensure sidebar is properly hidden when collapsed */
-.sidebar-collapse .main-sidebar {
-  transform: translateX(-250px);
-  visibility: hidden;
-}
-
-/* Ensure content takes full width when sidebar is collapsed */
-.sidebar-collapse .content-wrapper {
-  margin-left: 0 !important;
-  width: 100% !important;
-}
-
-/* Compact sidebar styles */
-.nav-sidebar .nav-item .nav-link {
-  padding: 8px 15px !important;
-  font-size: 13px !important;
-  line-height: 1.2 !important;
-}
-
-.nav-sidebar .nav-item .nav-link .nav-icon {
-  font-size: 12px !important;
-  margin-right: 8px !important;
-}
-
-.nav-sidebar .nav-item .nav-link p {
-  margin: 0 !important;
-  font-size: 13px !important;
-  line-height: 1.2 !important;
-}
-
-.nav-header {
-  padding: 8px 15px !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  color: #6c757d !important;
-  background-color: #f8f9fa !important;
-  border-bottom: 1px solid #dee2e6 !important;
-}
-
-/* Brand link styling to match navbar alignment */
-.brand-link {
-  display: flex !important;
-  align-items: center !important;
-  padding: 0 15px !important;
-  height: 60px !important;
-  border-bottom: 1px solid rgba(255,255,255,0.1) !important;
-  text-decoration: none !important;
-  flex-shrink: 0 !important;
-  margin: 0 !important;
-}
-
-.brand-link:hover {
-  text-decoration: none !important;
-  color: white !important;
-}
-
-.brand-image {
-  margin-right: 10px !important;
-}
-
-/* Ensure sidebar navigation starts below brand */
-.sidebar {
-  margin-top: 0 !important;
-}
-
-/* Remove extra spacing from nav */
-.sidebar nav {
-  margin-top: 0 !important;
-  padding-top: 0 !important;
-}
-
-/* Make all tables horizontally scrollable on overflow */
-table {
+.invalid-feedback {
   display: block;
   width: 100%;
-  overflow-x: auto;
-  white-space: nowrap;
+  margin-top: 0.25rem;
+  font-size: 0.875em;
+  color: #dc3545;
 }
 
-/* Or, for more control, use a wrapper class: */
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
+/* User action grid styles */
+.user-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 .user-action-grid .btn {
   font-size: 1.1rem;
 }
 
+/* Mobile styles - below 768px */
 @media (max-width: 767px) {
   .user-action-grid {
     display: flex;
@@ -306,7 +147,28 @@ table {
   }
 }
 
-@media (min-width: 711px) {
+/* Tablet-specific styles for 762px to 992px range */
+@media (min-width: 762px) and (max-width: 991px) {
+  /* Ensure navbar is positioned correctly for tablet view */
+  #fixed-navbar {
+    left: 0 !important;
+    width: 100% !important;
+  }
+  
+  /* Ensure content wrapper doesn't have left margin on tablet */
+  .content-wrapper {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  
+  /* Ensure sidebar is hidden on tablet */
+  .main-sidebar {
+    left: -250px !important;
+  }
+}
+
+/* Desktop styles - 992px and above */
+@media (min-width: 992px) {
   .table {
     width: 100% !important;
     table-layout: auto !important;
@@ -377,26 +239,4 @@ h1 {
 .custom-dropdown-menu .dropdown-item:focus {
   background: #222;
   color: #fff;
-  outline: none;
-}
-
-.table {
-  width: 100% !important;
-  max-width: 100% !important;
-  table-layout: auto;
-}
-
-.table-responsive {
-  width: 100% !important;
-  overflow-x: auto;
-}
-
-.card-body {
-  width: 100%;
-  padding: 1rem;
-}
-
-/* Add 5px gap between adjacent buttons */
-.btn + .btn {
-  margin-left: 5px;
 }

@@ -152,18 +152,6 @@ export default function Login() {
           </button>
         </form>
 
-        <div style={{
-          marginTop: '30px',
-          padding: '20px',
-          background: '#f3f4f6',
-          borderRadius: '8px',
-          fontSize: '14px',
-          color: '#6b7280'
-        }}>
-          <h3 style={{ margin: '0 0 10px 0', color: '#374151' }}>Development Credentials:</h3>
-          <p style={{ margin: '5px 0' }}><strong>Owner:</strong> username: owner, password: password123</p>
-          <p style={{ margin: '5px 0' }}><strong>Admin:</strong> username: admin, password: password123</p>
-        </div>
       </div>
     </div>
   );

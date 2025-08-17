@@ -1,0 +1,277 @@
+# AWS IP Middleware Proxy Deployment Configuration
+
+# Environment Variables for Production
+environment:
+  NODE_ENV: production
+  
+  # Authentication
+  JWT_SECRET: ${JWT_SECRET}
+  VALID_API_KEYS: ${VALID_API_KEYS}
+  
+  # Redis Configuration
+  REDIS_URL: ${REDIS_URL}
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_PORT}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  
+  # Database
+  DATABASE_URL: ${DATABASE_URL}
+  
+  # Server Configuration
+  EXTERNAL_API_PORT: 4001
+  FRONTEND_URL: ${FRONTEND_URL}
+  
+  # Logging
+  LOG_LEVEL: info
+  
+  # Rate Limiting
+  GLOBAL_RATE_LIMIT_MAX: 200
+  GLOBAL_RATE_LIMIT_WINDOW: 60000
+  
+  # Proxy Configuration
+  PROXY_CONFIG_PATH: /app/proxy-config.json
+  
+  # Security
+  DISABLE_BULLMQ: false
+  DISABLE_CRON: false
+  DISABLE_SOCKETS: false
+
+# AWS EC2 Configuration
+aws:
+  region: us-east-1
+  instance_type: t3.medium
+  
+  # Security Group Rules
+  security_groups:
+    - name: proxy-sg
+      rules:
+        - port: 4001
+          protocol: tcp
+          source: 0.0.0.0/0
+        - port: 22
+          protocol: tcp
+          source: your-admin-ip/32
+        - port: 6380
+          protocol: tcp
+          source: vpc-cidr
+  
+  # Load Balancer Configuration
+  load_balancer:
+    type: application
+    scheme: internet-facing
+    listeners:
+      - port: 443
+        protocol: HTTPS
+        ssl_certificate: ${SSL_CERT_ARN}
+        target_port: 4001
+      - port: 80
+        protocol: HTTP
+        redirect_to_https: true
+  
+  # Auto Scaling Configuration
+  auto_scaling:
+    min_size: 2
+    max_size: 10
+    desired_capacity: 3
+    health_check_type: ELB
+    health_check_grace_period: 300
+    
+    scaling_policies:
+      - name: scale-up
+        adjustment_type: ChangeInCapacity
+        scaling_adjustment: 2
+        cooldown: 300
+        metric_name: CPUUtilization
+        threshold: 70
+        comparison_operator: GreaterThanThreshold
+      
+      - name: scale-down
+        adjustment_type: ChangeInCapacity
+        scaling_adjustment: -1
+        cooldown: 300
+        metric_name: CPUUtilization
+        threshold: 30
+        comparison_operator: LessThanThreshold
+
+# Docker Configuration
+docker:
+  image: betting-proxy:latest
+  ports:
+    - "4001:4001"
+  volumes:
+    - "./proxy-config.json:/app/proxy-config.json:ro"
+    - "./logs:/app/logs"
+  restart: unless-stopped
+  
+  # Health Check
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:4001/proxy/health"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 40s
+
+# Kubernetes Configuration (Alternative)
+kubernetes:
+  namespace: betting-proxy
+  
+  deployment:
+    replicas: 3
+    image: betting-proxy:latest
+    
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    
+    env:
+      - name: NODE_ENV
+        value: "production"
+      - name: JWT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: proxy-secrets
+            key: jwt-secret
+      - name: REDIS_URL
+        valueFrom:
+          configMapKeyRef:
+            name: proxy-config
+            key: redis-url
+    
+    livenessProbe:
+      httpGet:
+        path: /proxy/health
+        port: 4001
+      initialDelaySeconds: 30
+      periodSeconds: 10
+    
+    readinessProbe:
+      httpGet:
+        path: /proxy/health
+        port: 4001
+      initialDelaySeconds: 5
+      periodSeconds: 5
+  
+  service:
+    type: LoadBalancer
+    ports:
+      - port: 80
+        targetPort: 4001
+        protocol: TCP
+  
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: proxy.yourdomain.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: proxy-tls
+        hosts:
+          - proxy.yourdomain.com
+
+# Monitoring Configuration
+monitoring:
+  cloudwatch:
+    enabled: true
+    log_group: /aws/ec2/betting-proxy
+    metrics:
+      - CPUUtilization
+      - MemoryUtilization
+      - NetworkIn
+      - NetworkOut
+      - HTTPCode_Target_2XX_Count
+      - HTTPCode_Target_4XX_Count
+      - HTTPCode_Target_5XX_Count
+      - TargetResponseTime
+  
+  custom_metrics:
+    - name: proxy_requests_total
+      type: counter
+      description: Total number of proxy requests
+    - name: proxy_request_duration
+      type: histogram
+      description: Proxy request duration in seconds
+    - name: cache_hit_ratio
+      type: gauge
+      description: Cache hit ratio percentage
+    - name: active_connections
+      type: gauge
+      description: Number of active connections
+
+# Backup Configuration
+backup:
+  configuration:
+    enabled: true
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    retention_days: 30
+    s3_bucket: ${BACKUP_S3_BUCKET}
+    files:
+      - proxy-config.json
+      - logs/
+  
+  database:
+    enabled: true
+    schedule: "0 1 * * *"  # Daily at 1 AM
+    retention_days: 7
+    s3_bucket: ${BACKUP_S3_BUCKET}
+
+# Security Configuration
+security:
+  ssl:
+    enabled: true
+    certificate_arn: ${SSL_CERT_ARN}
+    min_protocol_version: TLSv1.2
+  
+  waf:
+    enabled: true
+    rules:
+      - name: RateLimitRule
+        priority: 1
+        action: BLOCK
+        rate_limit: 2000  # requests per 5 minutes
+      - name: IPWhitelistRule
+        priority: 2
+        action: ALLOW
+        ip_whitelist:
+          - your-office-ip/32
+          - aws-vpc-cidr/16
+  
+  secrets_manager:
+    enabled: true
+    secrets:
+      - name: proxy/jwt-secret
+        description: JWT secret for proxy authentication
+      - name: proxy/api-keys
+        description: Valid API keys for proxy access
+      - name: proxy/redis-password
+        description: Redis password
+
+# Deployment Scripts
+scripts:
+  pre_deploy:
+    - name: backup_config
+      command: "aws s3 cp proxy-config.json s3://${BACKUP_S3_BUCKET}/config-backup-$(date +%Y%m%d-%H%M%S).json"
+    - name: validate_config
+      command: "node -e \"JSON.parse(require('fs').readFileSync('proxy-config.json', 'utf8'))\""
+  
+  post_deploy:
+    - name: health_check
+      command: "curl -f http://localhost:4001/proxy/health"
+      timeout: 30
+      retries: 5
+    - name: warm_cache
+      command: "node scripts/warm-cache.js"
+  
+  rollback:
+    - name: restore_config
+      command: "aws s3 cp s3://${BACKUP_S3_BUCKET}/config-backup-latest.json proxy-config.json"
+    - name: restart_service
+      command: "systemctl restart betting-proxy"

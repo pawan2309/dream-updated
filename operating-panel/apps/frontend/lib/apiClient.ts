@@ -11,17 +11,20 @@ export async function apiFetch(
 ): Promise<Response> {
   const url = `${API_BASE}${normalizePath(inputPath)}`;
 
-  // Ensure the ngrok browser warning is bypassed so we always get JSON
-  const skipHeader = { 'ngrok-skip-browser-warning': 'true' } as Record<string, string>;
+  // Set default headers for API requests
+  const defaultHeaders = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  } as Record<string, string>;
 
   if (init.headers) {
     // Merge with any headers the caller already provided
     init.headers = {
-      ...skipHeader,
+      ...defaultHeaders,
       ...(init.headers as Record<string, string>)
     };
   } else {
-    init.headers = skipHeader;
+    init.headers = defaultHeaders;
   }
 
   return fetch(url, init);

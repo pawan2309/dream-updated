@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const casinoService = require('../../services/casinoService');
 
 // Casino API endpoints
 const CASINO_ENDPOINTS = {
@@ -44,64 +45,120 @@ const CASINO_ENDPOINTS = {
 // Get all casino data
 router.get('/', async (req, res) => {
   try {
-    const { status } = req.query;
-    console.log('🎰 Backend Casino API called with status:', status);
+    const { status, refresh } = req.query;
+    console.log('🎰 Backend Casino API called with status:', status, 'refresh:', refresh);
 
-    const casinoData = [];
-    
-    for (const [key, casino] of Object.entries(CASINO_ENDPOINTS)) {
-      console.log(`🔍 Fetching data for ${key}...`);
+    let casinoData = [];
+    let source = 'database';
+
+    // If refresh is requested, fetch from external APIs and sync to DB
+    if (refresh === 'true') {
+      console.log('🔄 Refreshing casino data from external APIs...');
       
+      // Ensure casino table exists
       try {
-        const fetchOptions = {
-          method: 'GET',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache'
-          }
-        };
+        await casinoService.ensureTable();
+        console.log('✅ Casino table verified');
+      } catch (tableError) {
+        console.error('💥 Error ensuring casino table:', tableError);
+      }
+      
+      for (const [key, casino] of Object.entries(CASINO_ENDPOINTS)) {
+        console.log(`🔍 Fetching data for ${key}...`);
+        
+        try {
+          const fetchOptions = {
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            }
+          };
 
-        // Fetch casino data
-        console.log(`📡 Calling: ${casino.dataUrl}`);
-        const dataResponse = await fetch(casino.dataUrl, fetchOptions);
-        console.log(`📡 Data response status: ${dataResponse.status} for ${key}`);
-        
-        console.log(`📡 Calling: ${casino.resultUrl}`);
-        const resultResponse = await fetch(casino.resultUrl, fetchOptions);
-        console.log(`📡 Result response status: ${resultResponse.status} for ${key}`);
-        
-        if (dataResponse.ok && resultResponse.ok) {
-          const data = await dataResponse.json();
-          const result = await resultResponse.json();
+          // Fetch casino data
+          console.log(`📡 Calling: ${casino.dataUrl}`);
+          const dataResponse = await fetch(casino.dataUrl, fetchOptions);
+          console.log(`📡 Data response status: ${dataResponse.status} for ${key}`);
           
-          console.log(`✅ Successfully fetched data for ${key}:`, { data, result });
+          console.log(`📡 Calling: ${casino.resultUrl}`);
+          const resultResponse = await fetch(casino.resultUrl, fetchOptions);
+          console.log(`📡 Result response status: ${resultResponse.status} for ${key}`);
           
-          casinoData.push({
-            eventId: casino.streamingId,
-            name: casino.name,
-            shortName: key.toUpperCase(),
-            betStatus: data.status || 'yes',
-            minStake: data.minStake || 100,
-            maxStake: data.maxStake || 10000,
-            lastResult: result.lastResult || 'N/A',
-            roundId: result.roundId || 'N/A',
-            streamingId: casino.streamingId,
-            dataUrl: casino.dataUrl,
-            resultUrl: casino.resultUrl
-          });
-        } else {
-          console.log(`❌ API call failed for ${key}:`, {
-            dataStatus: dataResponse.status,
-            resultStatus: resultResponse.status
-          });
+          if (dataResponse.ok && resultResponse.ok) {
+            const data = await dataResponse.json();
+            const result = await resultResponse.json();
+            
+            console.log(`✅ Successfully fetched data for ${key}:`, { data, result });
+            
+            casinoData.push({
+              eventId: casino.streamingId,
+              name: casino.name,
+              shortName: key.toUpperCase(),
+              betStatus: data.status || 'yes',
+              minStake: data.minStake || 100,
+              maxStake: data.maxStake || 10000,
+              lastResult: result.lastResult || 'N/A',
+              roundId: result.roundId || 'N/A',
+              streamingId: casino.streamingId,
+              dataUrl: casino.dataUrl,
+              resultUrl: casino.resultUrl
+            });
+          } else {
+            console.log(`❌ API call failed for ${key}:`, {
+              dataStatus: dataResponse.status,
+              resultStatus: resultResponse.status
+            });
+          }
+        } catch (error) {
+          console.error(`💥 Error fetching data for ${key}:`, error);
         }
-      } catch (error) {
-        console.error(`💥 Error fetching data for ${key}:`, error);
+      }
+
+      // Sync external data to database
+      if (casinoData.length > 0) {
+        try {
+          await casinoService.syncCasinosFromExternalAPI(casinoData);
+          console.log('💾 Casino data synced to database');
+          source = 'external-api-synced';
+        } catch (syncError) {
+          console.error('💥 Error syncing to database:', syncError);
+        }
       }
     }
 
-    console.log(`🎯 Total casinos fetched: ${casinoData.length}`);
+    // Get data from database (either fresh or existing)
+    try {
+      const dbCasinos = await casinoService.getAllCasinos();
+      console.log(`🎯 Total casinos in DB: ${dbCasinos.length}`);
+      
+      // Transform DB data to match expected format
+      casinoData = dbCasinos.map(casino => ({
+        eventId: casino.event_id.toString(),
+        name: casino.name,
+        shortName: casino.short_name,
+        betStatus: casino.bet_status === 'OPEN' ? 'yes' : 'no', // OPEN = yes (betting allowed), CLOSED = no (betting restricted)
+        minStake: parseFloat(casino.min_stake) || 0,
+        maxStake: parseFloat(casino.max_stake) || 0,
+        streamingId: casino.stream_id?.toString(),
+        dataUrl: casino.data_url,
+        resultUrl: casino.result_url,
+        lastUpdated: casino.last_updated
+      }));
+      
+      console.log('✅ Data loaded from database');
+      
+    } catch (dbError) {
+      console.error('💥 Error fetching from database:', dbError);
+      // If database fails and no external data was fetched, return empty array
+      if (casinoData.length === 0) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to fetch casino data from database',
+          error: dbError.message
+        });
+      }
+    }
 
     // Filter by status if provided
     let filteredCasinos = casinoData;
@@ -116,7 +173,8 @@ router.get('/', async (req, res) => {
       data: filteredCasinos,
       totalFetched: casinoData.length,
       totalFiltered: filteredCasinos.length,
-      source: 'backend-proxy'
+      source: source,
+      lastUpdated: casinoData.length > 0 ? Math.max(...casinoData.map(c => new Date(c.lastUpdated).getTime())) : null
     });
 
   } catch (error) {
@@ -125,6 +183,82 @@ router.get('/', async (req, res) => {
       success: false, 
       message: 'Internal server error',
       error: error.message
+    });
+  }
+});
+
+// Direct fetch endpoint - bypass cache and fetch fresh data
+router.get('/fetch/:game', async (req, res) => {
+  try {
+    const { game } = req.params;
+    const { type = 'both' } = req.query; // 'data', 'result', or 'both'
+    
+    if (!CASINO_ENDPOINTS[game]) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid game: ${game}`,
+        availableGames: Object.keys(CASINO_ENDPOINTS)
+      });
+    }
+
+    const casino = CASINO_ENDPOINTS[game];
+    console.log(`🎯 Direct fetch for ${game} (${casino.name}) - type: ${type}`);
+
+    const fetchOptions = {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    };
+
+    let result = {};
+
+    if (type === 'data' || type === 'both') {
+      console.log(`📡 Fetching data from: ${casino.dataUrl}`);
+      const dataResponse = await fetch(casino.dataUrl, fetchOptions);
+      if (dataResponse.ok) {
+        result.data = await dataResponse.json();
+        console.log(`✅ Data fetched successfully for ${game}`);
+      } else {
+        result.dataError = `HTTP ${dataResponse.status}: ${dataResponse.statusText}`;
+        console.log(`❌ Data fetch failed for ${game}: ${result.dataError}`);
+      }
+    }
+
+    if (type === 'result' || type === 'both') {
+      console.log(`📡 Fetching result from: ${casino.resultUrl}`);
+      const resultResponse = await fetch(casino.resultUrl, fetchOptions);
+      if (resultResponse.ok) {
+        result.result = await resultResponse.json();
+        console.log(`✅ Result fetched successfully for ${game}`);
+      } else {
+        result.resultError = `HTTP ${resultResponse.status}: ${resultResponse.statusText}`;
+        console.log(`❌ Result fetch failed for ${game}: ${result.resultError}`);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Direct fetch completed for ${game}`,
+      game: game,
+      gameName: casino.name,
+      streamingId: casino.streamingId,
+      dataUrl: casino.dataUrl,
+      resultUrl: casino.resultUrl,
+      fetchType: type,
+      timestamp: new Date().toISOString(),
+      result: result
+    });
+
+  } catch (error) {
+    console.error(`💥 Direct fetch error for ${req.params.game}:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Direct fetch failed',
+      error: error.message,
+      game: req.params.game
     });
   }
 });

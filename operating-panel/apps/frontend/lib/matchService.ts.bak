@@ -1,0 +1,339 @@
+import { PrismaClient, Match, MatchOdds, MatchStatus } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export interface CricketFixture {
+  id: string;
+  name: string;
+  startTime: string;
+  status: string;
+  tournament: string;
+  matchType: string;
+  inPlay: boolean;
+  isCricket: boolean;
+  lastUpdated: string;
+  teams: any[];
+}
+
+export interface MatchCreateData {
+  bmarketId: string;
+  beventId?: string;
+  matchName: string;
+  tournament?: string;
+  startTime?: Date;
+  isLive: boolean;
+  matchType?: string;
+  isCricket: boolean;
+  teams?: any[];
+  apiSource?: string;
+  rawData?: any;
+}
+
+export class MatchService {
+  /**
+   * Create or update a cricket match
+   */
+  static async upsertMatch(data: MatchCreateData): Promise<Match> {
+    try {
+      const match = await prisma.match.upsert({
+        where: { 
+          externalId: data.bmarketId 
+        },
+        update: {
+          beventId: data.beventId,
+          matchName: data.matchName,
+          tournament: data.tournament,
+          startTime: data.startTime,
+          isLive: data.isLive,
+          matchType: data.matchType,
+          isCricket: data.isCricket,
+          teams: data.teams,
+          lastUpdated: new Date(),
+          rawData: data.rawData,
+          apiSource: data.apiSource
+        },
+        create: {
+          bmarketId: data.bmarketId,
+          beventId: data.beventId,
+          title: data.matchName,
+          externalId: data.bmarketId,
+          matchName: data.matchName,
+          tournament: data.tournament,
+          startTime: data.startTime,
+          isLive: data.isLive,
+          matchType: data.matchType,
+          isCricket: data.isCricket,
+          teams: data.teams,
+          apiSource: data.apiSource,
+          rawData: data.rawData
+        }
+      });
+
+      console.log(`✅ Match upserted: ${match.bmarketId} - ${match.matchName}`);
+      return match;
+    } catch (error) {
+      console.error('❌ Failed to upsert match:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get match by bmarketId
+   */
+  static async getMatchByBmarketId(bmarketId: string): Promise<Match | null> {
+    try {
+      return await prisma.match.findFirst({
+        where: {
+          bmarketId,
+          isActive: true,
+          isDeleted: false
+        },
+        include: {
+          odds: {
+            where: { isActive: true },
+            orderBy: { lastUpdated: 'desc' },
+            take: 1
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Failed to get match by bmarketId:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all active matches
+   */
+  static async getActiveMatches(): Promise<Match[]> {
+    try {
+      return await prisma.match.findMany({
+        where: {
+          isActive: true,
+          isDeleted: false
+        },
+        orderBy: {
+          startTime: 'asc'
+        },
+        include: {
+          odds: {
+            where: { isActive: true },
+            orderBy: { lastUpdated: 'desc' },
+            take: 1
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Failed to get active matches:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get live matches
+   */
+  static async getLiveMatches(): Promise<Match[]> {
+    try {
+      return await prisma.match.findMany({
+        where: {
+          isLive: true,
+          isActive: true,
+          isDeleted: false
+        },
+        orderBy: {
+          startTime: 'asc'
+        },
+        include: {
+          odds: {
+            where: { isActive: true },
+            orderBy: { lastUpdated: 'desc' },
+            take: 1
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Failed to get live matches:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update match status
+   */
+  static async updateMatchStatus(bmarketId: string, status: MatchStatus): Promise<Match | null> {
+    try {
+      const match = await prisma.match.update({
+        where: { bmarketId },
+        data: {
+          status,
+          lastUpdated: new Date(),
+          isLive: status === 'LIVE'
+        }
+      });
+
+      console.log(`✅ Match status updated: ${bmarketId} -> ${status}`);
+      return match;
+    } catch (error) {
+      console.error('❌ Failed to update match status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark match as completed
+   */
+  static async markMatchCompleted(bmarketId: string): Promise<Match | null> {
+    try {
+      const match = await prisma.match.update({
+        where: { bmarketId },
+        data: {
+          status: 'COMPLETED',
+          isLive: false,
+          isActive: false,
+          lastUpdated: new Date()
+        }
+      });
+
+      console.log(`✅ Match marked as completed: ${bmarketId}`);
+      return match;
+    } catch (error) {
+      console.error('❌ Failed to mark match as completed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Store match odds
+   */
+  static async storeMatchOdds(matchId: string, marketId: string, eventId: string, oddsData: any): Promise<MatchOdds> {
+    try {
+      // Deactivate previous odds
+      await prisma.matchOdds.updateMany({
+        where: {
+          matchId,
+          isActive: true
+        },
+        data: {
+          isActive: false
+        }
+      });
+
+      // Create new odds record
+      const odds = await prisma.matchOdds.create({
+        data: {
+          matchId,
+          marketId,
+          eventId,
+          oddsData,
+          lastUpdated: new Date(),
+          isActive: true
+        }
+      });
+
+      console.log(`✅ Match odds stored: ${matchId} - ${marketId}`);
+      return odds;
+    } catch (error) {
+      console.error('❌ Failed to store match odds:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync fixtures from Redis to database
+   */
+  static async syncFixturesFromRedis(fixtures: CricketFixture[]): Promise<{ created: number; updated: number }> {
+    try {
+      let created = 0;
+      let updated = 0;
+
+      for (const fixture of fixtures) {
+        try {
+          const matchData: MatchCreateData = {
+            bmarketId: fixture.id,
+            matchName: fixture.name,
+            tournament: fixture.tournament,
+            startTime: fixture.startTime ? new Date(fixture.startTime) : undefined,
+            isLive: fixture.inPlay,
+            matchType: fixture.matchType,
+            isCricket: fixture.isCricket,
+            teams: fixture.teams,
+            apiSource: 'cricket-api',
+            rawData: fixture
+          };
+
+          await this.upsertMatch(matchData);
+          
+          if (fixture.inPlay) {
+            updated++;
+          } else {
+            created++;
+          }
+        } catch (error) {
+          console.error(`❌ Failed to sync fixture ${fixture.id}:`, error);
+        }
+      }
+
+      console.log(`✅ Fixtures synced: ${created} created, ${updated} updated`);
+      return { created, updated };
+    } catch (error) {
+      console.error('❌ Failed to sync fixtures:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clean up old completed matches
+   */
+  static async cleanupOldMatches(daysOld: number = 30): Promise<number> {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+      const result = await prisma.match.updateMany({
+        where: {
+          status: 'COMPLETED',
+          lastUpdated: {
+            lt: cutoffDate
+          },
+          isActive: true
+        },
+        data: {
+          isActive: false,
+          isDeleted: true
+        }
+      });
+
+      console.log(`✅ Cleaned up ${result.count} old completed matches`);
+      return result.count;
+    } catch (error) {
+      console.error('❌ Failed to cleanup old matches:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get match statistics
+   */
+  static async getMatchStats(): Promise<{
+    total: number;
+    live: number;
+    upcoming: number;
+    completed: number;
+  }> {
+    try {
+      const [total, live, upcoming, completed] = await Promise.all([
+        prisma.match.count({ where: { isActive: true, isDeleted: false } }),
+        prisma.match.count({ where: { isLive: true, isActive: true, isDeleted: false } }),
+        prisma.match.count({ where: { status: 'UPCOMING', isActive: true, isDeleted: false } }),
+        prisma.match.count({ where: { status: 'COMPLETED', isActive: true, isDeleted: false } })
+      ]);
+
+      return { total, live, upcoming, completed };
+    } catch (error) {
+      console.error('❌ Failed to get match stats:', error);
+      throw error;
+    }
+  }
+}
+
+export default MatchService;

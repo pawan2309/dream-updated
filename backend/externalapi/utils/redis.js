@@ -11,11 +11,11 @@ class RedisManager {
 
     async connect() {
         try {
-            const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+            const redisUrl = process.env.REDIS_URL || 'redis://localhost:6380';
             
             this.client = new Redis(redisUrl, {
                 retryDelayOnFailover: 100,
-                maxRetriesPerRequest: 3,
+                maxRetriesPerRequest: null,  // ✅ Required for BullMQ
                 lazyConnect: true,
                 reconnectOnError: (err) => {
                     const targetError = 'READONLY';
@@ -187,6 +187,23 @@ class RedisManager {
         }
     }
 
+    // Add setex method for explicit set with expiry
+    async setex(key, ttl, value) {
+        try {
+            if (!this.isConnected) {
+                throw new Error('Redis not connected');
+            }
+
+            const serializedValue = typeof value === 'object' ? JSON.stringify(value) : value;
+            await this.client.setex(key, ttl, serializedValue);
+            logger.debug(`💾 SETEX: ${key} (TTL: ${ttl}s)`);
+            return true;
+        } catch (error) {
+            logger.error(`❌ Failed to setex cache key ${key}:`, error);
+            throw error;
+        }
+    }
+
     // Hash operations for complex data
     async hset(key, field, value) {
         try {
@@ -325,8 +342,13 @@ class RedisManager {
         return {
             isConnected: this.isConnected,
             reconnectAttempts: this.reconnectAttempts,
-            maxReconnectAttempts: this.maxReconnectAttempts
+            maxReconnectAttempts: this.maxReconnectAttempts,
+            status: this.client ? this.client.status : 'disconnected'
         };
+    }
+
+    isReady() {
+        return this.client && this.client.status === 'ready';
     }
 }
 
@@ -337,6 +359,7 @@ const redisManager = new RedisManager();
 async function connect() { return await redisManager.connect(); }
 async function disconnect() { return await redisManager.disconnect(); }
 async function set(key, value, ttl) { return await redisManager.set(key, value, ttl); }
+async function setex(key, ttl, value) { return await redisManager.setex(key, ttl, value); }
 async function get(key) { return await redisManager.get(key); }
 async function del(key) { return await redisManager.del(key); }
 async function exists(key) { return await redisManager.exists(key); }
@@ -350,11 +373,13 @@ async function rpop(key) { return await redisManager.rpop(key); }
 async function flushdb() { return await redisManager.flushdb(); }
 async function ping() { return await redisManager.ping(); }
 function getConnectionStatus() { return redisManager.getConnectionStatus(); }
+function isReady() { return redisManager.isReady(); }
 
 module.exports = {
     connect,
     disconnect,
     set,
+    setex,
     get,
     del,
     exists,
@@ -368,5 +393,7 @@ module.exports = {
     flushdb,
     ping,
     getConnectionStatus,
-    get client() { return redisManager.client; }
+    isReady,
+    get client() { return redisManager.client; },
+    get isConnected() { return redisManager.isConnected; }
 }; 

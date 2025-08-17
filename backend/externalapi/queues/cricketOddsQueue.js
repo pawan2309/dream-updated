@@ -5,7 +5,7 @@ const { fetchCricketOddsData } = require('../jobs/fetchCricketOddsData');
 
 const redisConnection = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
+      port: process.env.REDIS_PORT || 6380,
   password: process.env.REDIS_PASSWORD,
   db: process.env.REDIS_DB || 0,
   retryDelayOnFailover: 100,

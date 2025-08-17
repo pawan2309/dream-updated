@@ -1,14 +1,57 @@
 import type { AppProps } from 'next/app'
 import '../styles/globals.css'
-import { useEffect } from 'react'
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-dayjs.extend(weekday);
-// import { ConfigProvider, theme as antdTheme } from 'antd';
-// import 'antd/dist/antd.css';
+import { useEffect, useState } from 'react'
+import ErrorBoundary from '../components/ErrorBoundary'
+
+// Only import dayjs on client side to avoid SSR issues
+let dayjs: any;
+let weekday: any;
+
+if (typeof window !== 'undefined') {
+  dayjs = require('dayjs');
+  weekday = require('dayjs/plugin/weekday');
+  dayjs.extend(weekday);
+}
 
 export default function App({ Component, pageProps }: AppProps) {
+  const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
+    setIsClient(true);
+    setIsLoading(false);
+  }, []);
+
+  // Show loading state during SSR and initial client render
+  if (!isClient || isLoading) {
+    return (
+      <ErrorBoundary>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100vh',
+          fontSize: '18px',
+          color: '#666'
+        }}>
+          Loading...
+        </div>
+      </ErrorBoundary>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <ClientApp Component={Component} pageProps={pageProps} />
+    </ErrorBoundary>
+  );
+};
+
+// Separate client-side component that uses hooks
+const ClientApp = ({ Component, pageProps }: AppProps) => {
+  useEffect(() => {
+    console.log('🔵 App useEffect running - Client side');
+    
     // Add AdminLTE scripts in correct order
     const loadScript = (src: string) => {
       return new Promise<void>((resolve, reject) => {
@@ -94,5 +137,5 @@ export default function App({ Component, pageProps }: AppProps) {
     initializeAdminLTE();
   }, []);
 
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 } 

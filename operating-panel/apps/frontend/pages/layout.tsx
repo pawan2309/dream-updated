@@ -160,47 +160,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           padding: "0 12px",
           borderRadius: "0"
         }}>
-          <button 
-            onClick={toggleSidebar}
-            style={{ 
-              background: "none", 
-              border: "none", 
-              color: "#fff", 
-              fontSize: 24,
-              cursor: "pointer",
-              padding: "12px",
-              borderRadius: "4px",
-              transition: "all 0.15s ease-in-out",
-              minWidth: "48px",
-              minHeight: "48px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
-            onTouchStart={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.2)"}
-            onTouchEnd={(e) => e.currentTarget.style.backgroundColor = "transparent"}
-          >
-            {isMobile ? (isSidebarOpen ? "✕" : "☰") : "☰"}
-          </button>
-          <span style={{ 
-            fontSize: isMobile ? 16 : 20, 
-            fontWeight: "600",
-            display: isMobile ? "none" : "block",
-            color: "#fff"
-          }}>
-            Operating Panel
-          </span>
-          {isMobile && (
-            <span style={{ 
-              fontSize: 12, 
-              color: "#e5e7eb",
-              marginLeft: 8
-            }}>
-              {isSidebarOpen ? "Open" : "Closed"}
-            </span>
-          )}
+       
+          
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 16 }}>
           <div style={{ 
@@ -288,20 +249,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         top: 0,
         bottom: 0,
         width: currentWidth,
+        height: "100vh",
         zIndex: 1001,
-        display: sidebarVisible ? "block" : "none"
+        display: sidebarVisible ? "block" : "none",
+        transition: "width 0.3s ease-in-out"
       }}>
         <div style={{
           display: "flex",
           flexDirection: "column",
-          width: currentWidth
+          width: currentWidth,
+          height: "100vh"
         }}>
           <div style={{
             display: "flex",
             flexDirection: "column",
             flex: 1,
+            height: "100vh",
             overflowX: "hidden",
-            overflowY: "auto",
+            overflowY: "hidden",
             borderRight: "1px solid rgba(156, 163, 175, 0.2)"
           }}>
             {/* Header */}
@@ -314,7 +279,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 width: "100%",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "flex-start",
+                justifyContent: isCollapsed ? "flex-start" : "center",
                 height: isMobile ? "53px" : "70px",
                 background: "rgba(0, 0, 0, 0.3)",
                 padding: "0 12px"
@@ -322,37 +287,48 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <div style={{
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "flex-start",
-                  gap: "12px",
+                  justifyContent: isCollapsed ? "flex-start" : "center",
                   height: isMobile ? "53px" : "70px",
                   padding: "8px 0",
-                  width: "100%",
-                  paddingLeft: isMobile ? "12px" : "16px"
+                  width: "100%"
                 }}>
-                  <button 
-                    onClick={toggleSidebar}
-                    style={{ 
-                      background: "none", 
-                      border: "none", 
-                      color: "#fff", 
-                      fontSize: 24,
-                      cursor: "pointer",
-                      padding: "12px",
-                      borderRadius: "4px",
-                      transition: "all 0.15s ease-in-out",
-                      minWidth: "48px",
-                      minHeight: "48px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center"
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
-                    onTouchStart={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.2)"}
-                    onTouchEnd={(e) => e.currentTarget.style.backgroundColor = "transparent"}
-                  >
-                    {isMobile ? (isSidebarOpen ? "✕" : "☰") : "☰"}
-                  </button>
+                  {(isCollapsed || isMobile) && (
+                    <button 
+                      onClick={toggleSidebar}
+                      style={{ 
+                        background: "none", 
+                        border: "none", 
+                        color: "#fff", 
+                        fontSize: 20,
+                        cursor: "pointer",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        transition: "all 0.15s ease-in-out",
+                        minWidth: "40px",
+                        minHeight: "40px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginLeft: "8px"
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                      onTouchStart={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.2)"}
+                      onTouchEnd={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                    >
+                      {isMobile ? (isSidebarOpen ? "✕" : "☰") : "☰"}
+                    </button>
+                  )}
+                  <span style={{
+                    fontSize: isMobile ? "14px" : "16px",
+                    fontWeight: "600",
+                    color: "#fff",
+                    textAlign: "center",
+                    textShadow: "0 0 10px rgba(59, 130, 246, 0.5)",
+                    marginLeft: isCollapsed ? "8px" : "0"
+                  }}>
+                    {isCollapsed ? "OP" : "Operating Panel"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -361,9 +337,62 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <nav style={{
               flex: 1,
               background: "#1e3a8a",
-              fontFamily: "system-ui, -apple-system, sans-serif"
+              backgroundImage: isCollapsed ? "radial-gradient(circle at 20px 20px, rgba(255,255,255,0.03) 2px, transparent 2px)" : "none",
+              backgroundSize: isCollapsed ? "40px 40px" : "auto",
+              fontFamily: "system-ui, -apple-system, sans-serif",
+              minHeight: "calc(100vh - 70px)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              borderRight: isCollapsed ? "1px solid rgba(255,255,255,0.1)" : "none"
             }}>
-              <div style={{ marginTop: "8px" }}>
+              <div style={{ 
+                marginTop: "8px",
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden"
+              }}>
+                {/* Hamburger Toggle Button - Only visible in collapsed mode */}
+                {isCollapsed && (
+                  <div style={{ marginTop: "8px" }}>
+                    <span style={{
+                      cursor: "pointer",
+                      height: "36px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "8px 4px",
+                      fontSize: "14px",
+                      transition: "all 0.15s ease-in-out",
+                      color: "white",
+                      borderRadius: "8px",
+                      margin: "4px 8px"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                    onClick={toggleSidebar}
+                    >
+                      <div style={{
+                        marginLeft: "20px",
+                        color: "white",
+                        transition: "all 0.15s ease-in-out",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}>
+                        <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="25" width="25" xmlns="http://www.w3.org/2000/svg">
+                          <path fill="none" d="M0 0h24v24H0V0z"></path>
+                          <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path>
+                        </svg>
+                      </div>
+                    </span>
+                  </div>
+                )}
                 {/* Dashboard */}
                 <div style={{ marginTop: "8px" }}>
                   <Link href="/dashboard" style={{ textDecoration: "none", color: "inherit" }}>
@@ -377,10 +406,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       padding: "8px 4px",
                       fontSize: "14px",
                       transition: "all 0.15s ease-in-out",
-                      color: "white"
+                      color: "white",
+                      borderRadius: isCollapsed ? "8px" : "4px",
+                      margin: isCollapsed ? "4px 8px" : "0"
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.color = "#fa8c15";
+                      e.currentTarget.style.backgroundColor = isCollapsed ? "rgba(255,255,255,0.1)" : "transparent";
                       const iconDiv = e.currentTarget.querySelector('div') as HTMLElement;
                       const textSpan = e.currentTarget.querySelector('span') as HTMLElement;
                       if (iconDiv) iconDiv.style.color = "#fa8c15";
@@ -388,6 +420,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.color = "white";
+                      e.currentTarget.style.backgroundColor = "transparent";
                       const iconDiv = e.currentTarget.querySelector('div') as HTMLElement;
                       const textSpan = e.currentTarget.querySelector('span') as HTMLElement;
                       if (iconDiv) iconDiv.style.color = "white";
@@ -396,9 +429,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     onClick={() => isMobile && closeSidebar()}
                     >
                       <div style={{
-                        marginLeft: isCollapsed ? "8px" : "32px",
+                        marginLeft: isCollapsed ? "20px" : "32px",
                         color: "white",
-                        transition: "all 0.15s ease-in-out"
+                        transition: "all 0.15s ease-in-out",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: isCollapsed ? "center" : "flex-start"
                       }}>
                         <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="25" width="25" xmlns="http://www.w3.org/2000/svg">
                           <path fill="none" d="M0 0h24v24H0V0z"></path>
@@ -430,10 +466,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       padding: "8px 4px",
                       fontSize: "14px",
                       transition: "all 0.15s ease-in-out",
-                      color: "white"
+                      color: "white",
+                      borderRadius: isCollapsed ? "8px" : "4px",
+                      margin: isCollapsed ? "4px 8px" : "0"
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.color = "#fa8c15";
+                      e.currentTarget.style.backgroundColor = isCollapsed ? "rgba(255,255,255,0.1)" : "transparent";
                       const iconDiv = e.currentTarget.querySelector('div') as HTMLElement;
                       const textSpan = e.currentTarget.querySelector('span') as HTMLElement;
                       if (iconDiv) iconDiv.style.color = "#fa8c15";
@@ -441,6 +480,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.color = "white";
+                      e.currentTarget.style.backgroundColor = "transparent";
                       const iconDiv = e.currentTarget.querySelector('div') as HTMLElement;
                       const textSpan = e.currentTarget.querySelector('span') as HTMLElement;
                       if (iconDiv) iconDiv.style.color = "white";
@@ -449,9 +489,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     onClick={() => isMobile && closeSidebar()}
                     >
                       <div style={{
-                        marginLeft: isCollapsed ? "8px" : "32px",
+                        marginLeft: isCollapsed ? "20px" : "32px",
                         color: "white",
-                        transition: "all 0.15s ease-in-out"
+                        transition: "all 0.15s ease-in-out",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: isCollapsed ? "center" : "flex-start"
                       }}>
                         <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 16 16" height="23" width="23" xmlns="http://www.w3.org/2000/svg">
                           <path d="M6.5 1A1.5 1.5 0 0 0 5 2.5V3H1.5A1.5 1.5 0 0 0 0 4.5v1.384l7.614 2.03a1.5 1.5 0 0 0 .772 0L16 5.884V4.5A1.5 1.5 0 0 0 14.5 3H11v-.5A1.5 1.5 0 0 0 9.5 1h-3zm0 1h3a.5.5 0 0 1 .5.5V3H6v-.5a.5.5 0 0 1 .5-.5z"></path>
@@ -482,10 +525,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       padding: "8px 4px",
                       fontSize: "14px",
                       transition: "all 0.15s ease-in-out",
-                      color: "white"
+                      color: "white",
+                      borderRadius: isCollapsed ? "8px" : "4px",
+                      margin: isCollapsed ? "4px 8px" : "0"
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.color = "#fa8c15";
+                      e.currentTarget.style.backgroundColor = isCollapsed ? "rgba(255,255,255,0.1)" : "transparent";
                       const iconDiv = e.currentTarget.querySelector('div') as HTMLElement;
                       const textSpan = e.currentTarget.querySelector('span') as HTMLElement;
                       if (iconDiv) iconDiv.style.color = "#fa8c15";
@@ -493,6 +539,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.color = "white";
+                      e.currentTarget.style.backgroundColor = "transparent";
                       const iconDiv = e.currentTarget.querySelector('div') as HTMLElement;
                       const textSpan = e.currentTarget.querySelector('span') as HTMLElement;
                       if (iconDiv) iconDiv.style.color = "white";
@@ -501,9 +548,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     onClick={() => isMobile && closeSidebar()}
                     >
                       <div style={{
-                        marginLeft: isCollapsed ? "8px" : "32px",
+                        marginLeft: isCollapsed ? "20px" : "32px",
                         color: "white",
-                        transition: "all 0.15s ease-in-out"
+                        transition: "all 0.15s ease-in-out",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: isCollapsed ? "center" : "flex-start"
                       }}>
                         <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="25" width="25" xmlns="http://www.w3.org/2000/svg">
                           <path fill="none" d="M0 0h24v24H0V0z"></path>
@@ -533,10 +583,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     color: "white",
                     transition: "all 0.15s ease-in-out",
                     cursor: "pointer",
-                    height: "36px"
+                    height: "36px",
+                    borderRadius: isCollapsed ? "8px" : "4px",
+                    margin: isCollapsed ? "4px 8px" : "0"
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.color = "#fa8c15";
+                    e.currentTarget.style.backgroundColor = isCollapsed ? "rgba(255,255,255,0.1)" : "transparent";
                     const iconSpan = e.currentTarget.querySelector('span') as HTMLElement;
                     const lastChildSpan = e.currentTarget.querySelector('span:last-child') as HTMLElement;
                     const svgElement = e.currentTarget.querySelector('svg') as SVGSVGElement;
@@ -546,6 +599,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.color = "white";
+                    e.currentTarget.style.backgroundColor = "transparent";
                     const iconSpan = e.currentTarget.querySelector('span') as HTMLElement;
                     const lastChildSpan = e.currentTarget.querySelector('span:last-child') as HTMLElement;
                     const svgElement = e.currentTarget.querySelector('svg') as SVGSVGElement;
@@ -556,9 +610,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   onClick={() => handleDropdownToggle("Diamond Casino")}
                   >
                     <span style={{
-                      marginLeft: isCollapsed ? "8px" : "32px",
+                      marginLeft: isCollapsed ? "20px" : "32px",
                       color: "white",
-                      transition: "all 0.15s ease-in-out"
+                      transition: "all 0.15s ease-in-out",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: isCollapsed ? "center" : "flex-start"
                     }}>
                       <svg stroke="currentColor" fill="currentColor" strokeWidth="0" version="1.1" viewBox="0 0 32 32" height="23" width="23" xmlns="http://www.w3.org/2000/svg">
                         <path d="M9.456 27.25c6.215 0.848 12.319 1.682 18.544 2.532-2.121-3.531-4.187-6.972-6.27-10.441-4.081 2.63-8.124 5.235-12.273 7.909zM29.755 7.705c-0.548 0.823-1.097 1.645-1.644 2.468-1.879 2.827-3.758 5.654-5.635 8.482-0.105 0.158-0.24 0.283-0.093 0.525 1.814 2.995 3.613 5.999 5.417 9 0.285 0.474 0.572 0.946 0.941 1.401 0.364-7.284 0.729-14.568 1.094-21.852-0.027-0.008-0.054-0.016-0.080-0.023zM4.995 17.043c0.085 0.081 0.296 0.127 0.395 0.079 1.74-0.855 3.491-1.691 5.192-2.617 0.555-0.302 0.982-0.842 1.46-1.281 1.583-1.452 3.164-2.907 4.744-4.362 0.097-0.089 0.211-0.176 0.269-0.288 0.568-1.109 1.125-2.224 1.703-3.371-0.689-0.259-1.341-0.512-2.002-0.742-0.089-0.031-0.231 0.031-0.328 0.085-1.53 0.854-3.088 1.663-4.569 2.595-0.741 0.466-1.345 1.154-2.001 1.752-1.058 0.965-2.114 1.933-3.156 2.915-0.277 0.261-0.529 0.558-0.744 0.872-0.713 1.038-1.404 2.091-2.127 3.173 0.404 0.419 0.772 0.819 1.165 1.191zM11.353 15.625c-0.865 3.656-1.726 7.292-2.615 11.047 4.168-2.686 8.241-5.31 12.286-7.916-3.219-1.042-6.428-2.081-9.671-3.13zM28.692 7.74c-3.522 0.588-6.96 1.163-10.442 1.744 1.186 2.885 2.348 5.712 3.544 8.62 2.313-3.475 4.58-6.88 6.899-10.364zM11.498 14.877c3.172 1.030 6.28 2.039 9.479 3.077-1.188-2.894-2.335-5.687-3.506-8.538-1.995 1.824-3.959 3.62-5.973 5.461zM5.126 19.175c-1.125 2.689-2.211 5.286-3.317 7.93 2.126-0.063 4.187-0.124 6.318-0.187-1.001-2.582-1.982-5.114-3.001-7.744zM8.201 25.080c0.026-0.005 0.052-0.012 0.079-0.017 0.758-3.154 1.528-6.287 2.303-9.565-1.728 0.898-3.376 1.754-5.069 2.635 0.864 2.246 1.785 4.615 2.688 6.947zM27.417 7.229c-1.009-0.267-2.018-0.535-3.027-0.801-1.451-0.381-2.903-0.758-4.353-1.143-0.181-0.048-0.312-0.080-0.419 0.139-0.512 1.050-1.041 2.092-1.561 3.138-0.016 0.032-0.013 0.074-0.025 0.155 3.142-0.476 6.263-0.949 9.383-1.422 0.001-0.022 0.001-0.044 0.002-0.066zM21.564 4.841c2.709 0.75 5.419 1.499 8.223 2.275-0.472-1.344-0.909-2.59-1.359-3.872-2.303 0.511-4.577 1.015-6.852 1.519-0.004 0.026-0.008 0.051-0.012 0.077zM8.899 27.856c-1.019-0.117-2.064-0.009-3.097 0.008-0.849 0.015-1.697 0.047-2.545 0.073-0.088 0.003-0.175 0.020-0.262 0.114 7.015 0.649 14.030 1.297 21.044 1.946 0.005-0.031 0.009-0.063 0.014-0.094-2.249-0.307-4.497-0.614-6.746-0.921-2.802-0.383-5.599-0.803-8.408-1.127zM1.947 24.685c0.904-2.097 1.804-4.197 2.712-6.292 0.091-0.21 0.084-0.353-0.094-0.522-0.38-0.361-0.732-0.751-1.147-1.182-0.561 2.77-1.108 5.47-1.655 8.171 0.020 0.009 0.041 0.019 0.061 0.029 0.042-0.067 0.093-0.131 0.124-0.203zM19.763 4.287c1.524-0.393 3.071-0.701 4.608-1.044 0.099-0.022 0.197-0.055 0.295-0.083-0.005-0.025-0.010-0.050-0.015-0.075-2.165 0.291-4.331 0.583-6.606 0.889 0.62 0.271 1.098 0.473 1.718 0.314z"></path>
@@ -582,7 +639,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   </span>
                   
                   {/* Diamond Casino Dropdown */}
-                  {openDropdown === "Diamond Casino" && (
+                  {openDropdown === "Diamond Casino" && !isCollapsed && (
                     <div style={{
                       marginLeft: "32px",
                       background: "rgba(0,0,0,0.1)",
@@ -731,10 +788,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     color: "white",
                     transition: "all 0.15s ease-in-out",
                     cursor: "pointer",
-                    height: "36px"
+                    height: "36px",
+                    borderRadius: isCollapsed ? "8px" : "4px",
+                    margin: isCollapsed ? "4px 8px" : "0"
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.color = "#fa8c15";
+                    e.currentTarget.style.backgroundColor = isCollapsed ? "rgba(255,255,255,0.1)" : "transparent";
                     const iconSpan = e.currentTarget.querySelector('span') as HTMLElement;
                     const lastChildSpan = e.currentTarget.querySelector('span:last-child') as HTMLElement;
                     const svgElement = e.currentTarget.querySelector('svg') as SVGSVGElement;
@@ -744,6 +804,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.color = "white";
+                    e.currentTarget.style.backgroundColor = "transparent";
                     const iconSpan = e.currentTarget.querySelector('span') as HTMLElement;
                     const lastChildSpan = e.currentTarget.querySelector('span:last-child') as HTMLElement;
                     const svgElement = e.currentTarget.querySelector('svg') as SVGSVGElement;
@@ -754,9 +815,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   onClick={() => handleDropdownToggle("Matka Settings")}
                   >
                     <span style={{
-                      marginLeft: "32px",
+                      marginLeft: isCollapsed ? "20px" : "32px",
                       color: "white",
-                      transition: "all 0.15s ease-in-out"
+                      transition: "all 0.15s ease-in-out",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: isCollapsed ? "center" : "flex-start"
                     }}>
                       <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="25" width="25" xmlns="http://www.w3.org/2000/svg">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -769,20 +833,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <span style={{
                       fontSize: "14px",
                       fontWeight: isMobile ? "600" : "400",
-                      transition: "all 0.15s ease-in-out"
+                      transition: "all 0.15s ease-in-out",
+                      display: isCollapsed ? "none" : "block"
                     }}>
                       Matka Settings
                     </span>
                     <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 20 20" aria-hidden="true" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg" style={{ 
                       transition: "all 0.15s ease-in-out",
-                      transform: openDropdown === "Matka Settings" ? "rotate(180deg)" : "rotate(0deg)"
+                      transform: openDropdown === "Matka Settings" ? "rotate(180deg)" : "rotate(0deg)",
+                      display: isCollapsed ? "none" : "block"
                     }}>
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"></path>
                     </svg>
                   </span>
                   
                   {/* Matka Settings Dropdown */}
-                  {openDropdown === "Matka Settings" && (
+                  {openDropdown === "Matka Settings" && !isCollapsed && (
                     <div style={{
                       marginLeft: "32px",
                       background: "rgba(0,0,0,0.1)",
@@ -890,10 +956,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       padding: "8px 4px",
                       fontSize: "14px",
                       transition: "all 0.15s ease-in-out",
-                      color: "white"
+                      color: "white",
+                      borderRadius: isCollapsed ? "8px" : "4px",
+                      margin: isCollapsed ? "4px 8px" : "0"
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.color = "#fa8c15";
+                      e.currentTarget.style.backgroundColor = isCollapsed ? "rgba(255,255,255,0.1)" : "transparent";
                       const iconDiv = e.currentTarget.querySelector('div') as HTMLElement;
                       const textSpan = e.currentTarget.querySelector('span') as HTMLElement;
                       if (iconDiv) iconDiv.style.color = "#fa8c15";
@@ -901,6 +970,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.color = "white";
+                      e.currentTarget.style.backgroundColor = "transparent";
                       const iconDiv = e.currentTarget.querySelector('div') as HTMLElement;
                       const textSpan = e.currentTarget.querySelector('span') as HTMLElement;
                       if (iconDiv) iconDiv.style.color = "white";
@@ -909,9 +979,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     onClick={() => isMobile && closeSidebar()}
                     >
                       <div style={{
-                        marginLeft: "32px",
+                        marginLeft: isCollapsed ? "20px" : "32px",
                         color: "white",
-                        transition: "all 0.15s ease-in-out"
+                        transition: "all 0.15s ease-in-out",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: isCollapsed ? "center" : "flex-start"
                       }}>
                         <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 576 512" height="22" width="22" xmlns="http://www.w3.org/2000/svg">
                           <path d="M0 112.5V422.3c0 18 10.1 35 27 41.3c87 32.5 174 10.3 261-11.9c79.8-20.3 159.6-40.7 239.3-18.9c23 6.3 48.7-9.5 48.7-33.4V89.7c0-18-10.1-35-27-41.3C462 15.9 375 38.1 288 60.3C208.2 80.6 128.4 100.9 48.7 79.1C25.6 72.8 0 88.6 0 112.5zM288 352c-44.2 0-80-43-80-96s35.8-96 80-96s80 43 80 96s-35.8 96-80 96zM64 352c35.3 0 64 28.7 64 64H64V352zm64-208c0 35.3-28.7 64-64 64V144h64zM512 304v64H448c0-35.3 28.7-64 64-64zM448 96h64v64c-35.3 0-64-28.7-64-64z"></path>
@@ -920,7 +993,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <span style={{
                         fontSize: "14px",
                         fontWeight: isMobile ? "600" : "400",
-                        transition: "all 0.15s ease-in-out"
+                        transition: "all 0.15s ease-in-out",
+                        display: isCollapsed ? "none" : "block"
                       }}>
                         Show User Exposer
                       </span>
@@ -940,10 +1014,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       padding: "8px 4px",
                       fontSize: "14px",
                       transition: "all 0.15s ease-in-out",
-                      color: "white"
+                      color: "white",
+                      borderRadius: isCollapsed ? "8px" : "4px",
+                      margin: isCollapsed ? "4px 8px" : "0"
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.color = "#fa8c15";
+                      e.currentTarget.style.backgroundColor = isCollapsed ? "rgba(255,255,255,0.1)" : "transparent";
                       const iconDiv = e.currentTarget.querySelector('div') as HTMLElement;
                       const textSpan = e.currentTarget.querySelector('span') as HTMLElement;
                       if (iconDiv) iconDiv.style.color = "#fa8c15";
@@ -951,6 +1028,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.color = "white";
+                      e.currentTarget.style.backgroundColor = "transparent";
                       const iconDiv = e.currentTarget.querySelector('div') as HTMLElement;
                       const textSpan = e.currentTarget.querySelector('span') as HTMLElement;
                       if (iconDiv) iconDiv.style.color = "white";
@@ -959,9 +1037,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     onClick={() => isMobile && closeSidebar()}
                     >
                       <div style={{
-                        marginLeft: "32px",
+                        marginLeft: isCollapsed ? "20px" : "32px",
                         color: "white",
-                        transition: "all 0.15s ease-in-out"
+                        transition: "all 0.15s ease-in-out",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: isCollapsed ? "center" : "flex-start"
                       }}>
                         <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="25" width="25" xmlns="http://www.w3.org/2000/svg">
                           <path fill="none" d="M0 0h24v24H0V0z"></path>
@@ -972,7 +1053,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <span style={{
                         fontSize: "14px",
                         fontWeight: isMobile ? "600" : "400",
-                        transition: "all 0.15s ease-in-out"
+                        transition: "all 0.15s ease-in-out",
+                        display: isCollapsed ? "none" : "block"
                       }}>
                         Settings
                       </span>
@@ -981,6 +1063,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
             </nav>
+            
+            {/* Footer with Logo */}
+            <div style={{
+              background: "#1e3a8a",
+              borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+              padding: "16px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              marginTop: "auto"
+            }}>
+              <div style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                background: "#2d3131",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontSize: "18px",
+                fontWeight: "bold",
+                border: "2px solid rgba(255, 255, 255, 0.2)"
+              }}>
+                N
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -993,9 +1102,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         minHeight: isMobile ? "calc(100vh - 53px)" : "calc(100vh - 70px)",
         transition: "margin-left 0.3s ease",
         width: isMobile ? "100%" : `calc(100% - ${currentWidth}px)`,
-        fontFamily: "system-ui, -apple-system, sans-serif"
+        fontFamily: "system-ui, -apple-system, sans-serif",
+        overflowX: "hidden"
       }}>
-        <section style={{ padding: "2px" }}>
+        <section style={{ 
+          padding: "20px",
+          maxWidth: "100%",
+          boxSizing: "border-box"
+        }}>
           <div>{children}</div>
         </section>
       </main>

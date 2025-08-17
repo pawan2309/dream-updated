@@ -1,7 +1,7 @@
 const Redis = require('ioredis');
 const logger = require('../externalapi/utils/logger');
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6380';
 
 const pub = new Redis(REDIS_URL, { lazyConnect: true });
 const sub = new Redis(REDIS_URL, { lazyConnect: true });

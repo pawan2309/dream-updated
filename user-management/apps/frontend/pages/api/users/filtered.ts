@@ -18,7 +18,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const jwt = require('jsonwebtoken');
     let decoded;
     try {
-      decoded = jwt.verify(session, process.env.JWT_SECRET || 'dev_secret');
+                      const JWT_SECRET = process.env.JWT_SECRET;
+        if (!JWT_SECRET) {
+          return res.status(500).json({ success: false, message: 'Server configuration error' });
+        }
+        decoded = jwt.verify(session, JWT_SECRET);
     } catch (error) {
       return res.status(401).json({ success: false, message: 'Invalid session' });
     }

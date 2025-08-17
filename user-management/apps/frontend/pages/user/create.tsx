@@ -53,6 +53,7 @@ const UserCreatePage = () => {
   const [parentInfo, setParentInfo] = useState<{ name: string; code: string; role: string } | null>(null);
   const [parentData, setParentData] = useState<any>(null);
   const [loadingParent, setLoadingParent] = useState(true);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
 
   // Get role display name
   const getRoleDisplayName = (role: string) => {
@@ -88,7 +89,9 @@ const UserCreatePage = () => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const res = await fetch('/api/auth/session');
+        const res = await fetch('/api/auth/session', {
+          credentials: 'include'
+        });
         const data = await res.json();
         if (data.valid) {
           setIsSessionValid(true);
@@ -123,7 +126,9 @@ const UserCreatePage = () => {
       setLoadingParent(true);
       
       // Fetch parent's user data including commission shares
-      const parentRes = await fetch(`/api/users/${parentId}`);
+      const parentRes = await fetch(`/api/users/${parentId}`, {
+        credentials: 'include'
+      });
       const parentUserData = await parentRes.json();
       
       if (parentUserData.success) {
@@ -150,7 +155,9 @@ const UserCreatePage = () => {
   const fetchParentInfo = async () => {
     if (parentId) {
       try {
-        const res = await fetch(`/api/users/${router.query.parentId}`);
+        const res = await fetch(`/api/users/${router.query.parentId}`, {
+          credentials: 'include'
+        });
         const data = await res.json();
         if (data.success && data.user) {
           setParentInfo({
@@ -175,11 +182,69 @@ const UserCreatePage = () => {
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
+    
+    // Clear validation error for this field when user types
+    if (validationErrors[name]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const generatePassword = () => {
     const randomPassword = Math.floor(Math.random() * (9999999 - 1000000)) + 1000000;
     setFormData(prev => ({ ...prev, password: randomPassword.toString() }));
+  };
+
+  const validateForm = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required';
+    }
+    
+    if (!formData.password.trim()) {
+      errors.password = 'Password is required';
+    }
+    
+    if (!formData.reference.trim()) {
+      errors.reference = 'Reference is required';
+    }
+    
+    // Validate contact number - allow any numerical input but must be numbers only
+    if (formData.contactno && !/^\d+$/.test(formData.contactno)) {
+      errors.contactno = 'Contact number must contain only numbers';
+    }
+    
+    // Validate share values
+    if (formData.share < 0 || formData.share > 100) {
+      errors.share = 'Share must be between 0 and 100';
+    }
+    
+    if (formData.casinoShare < 0 || formData.casinoShare > 100) {
+      errors.casinoShare = 'Casino share must be between 0 and 100';
+    }
+    
+    // Validate commission values
+    if (formData.matchcommission < 0 || formData.matchcommission > 10) {
+      errors.matchcommission = 'Match commission must be between 0 and 10';
+    }
+    
+    if (formData.sessioncommission < 0 || formData.sessioncommission > 10) {
+      errors.sessioncommission = 'Session commission must be between 0 and 10';
+    }
+    
+    if (formData.casinoCommission < 0 || formData.casinoCommission > 10) {
+      errors.casinoCommission = 'Casino commission must be between 0 and 10';
+    }
+    
+    // Set validation errors
+    setValidationErrors(errors);
+    
+    // Return true if no errors, false if there are errors
+    return Object.keys(errors).length === 0;
   };
 
   const handleCommissionTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -193,6 +258,12 @@ const UserCreatePage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      return; // Stop submission if validation fails
+    }
+    
     setIsLoading(true);
 
     try {
@@ -217,7 +288,9 @@ const UserCreatePage = () => {
   const createUser = async (userRole: string, parentId?: string | null) => {
     try {
       // Get current user's session to determine parentId if not provided
-      const sessionRes = await fetch('/api/auth/session');
+      const sessionRes = await fetch('/api/auth/session', {
+        credentials: 'include'
+      });
       const sessionData = await sessionRes.json();
       
       if (!sessionData.valid) {
@@ -259,6 +332,7 @@ const UserCreatePage = () => {
       const res = await fetch('/api/users/role-based', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(userData)
       });
 
@@ -400,24 +474,73 @@ const UserCreatePage = () => {
                     </div>
                     <div className="form-group">
                       <label>Name</label>
-                      <input type="text" name="name" className="form-control shadow-none" required value={formData.name} onChange={handleInputChange} />
+                      <input 
+                        type="text" 
+                        name="name" 
+                        className={`form-control shadow-none ${validationErrors.name ? 'is-invalid' : ''}`} 
+                        required 
+                        value={formData.name} 
+                        onChange={handleInputChange} 
+                      />
+                      {validationErrors.name && (
+                        <div className="invalid-feedback">
+                          {validationErrors.name}
+                        </div>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Reference</label>
-                      <input type="text" name="reference" className="form-control shadow-none" required value={formData.reference} onChange={handleInputChange} />
+                      <input 
+                        type="text" 
+                        name="reference" 
+                        className={`form-control shadow-none ${validationErrors.reference ? 'is-invalid' : ''}`} 
+                        required 
+                        value={formData.reference} 
+                        onChange={handleInputChange} 
+                      />
+                      {validationErrors.reference && (
+                        <div className="invalid-feedback">
+                          {validationErrors.reference}
+                        </div>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Password</label>
                       <div className="input-group">
-                        <input type="text" name="password" className="form-control shadow-none" required value={formData.password} onChange={handleInputChange} />
+                        <input 
+                          type="text" 
+                          name="password" 
+                          className={`form-control shadow-none ${validationErrors.password ? 'is-invalid' : ''}`} 
+                          required 
+                          value={formData.password} 
+                          onChange={handleInputChange} 
+                        />
                         <span className="input-group-append">
                           <button type="button" className="generate-password btn btn-info btn-flat" onClick={generatePassword}>Generate Password</button>
                         </span>
                       </div>
+                      {validationErrors.password && (
+                        <div className="invalid-feedback">
+                          {validationErrors.password}
+                        </div>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Contact No</label>
-                      <input type="number" name="contactno" className="form-control shadow-none" required value={formData.contactno} onChange={handleInputChange} />
+                      <input 
+                        type="text" 
+                        name="contactno" 
+                        className={`form-control shadow-none ${validationErrors.contactno ? 'is-invalid' : ''}`} 
+                        required 
+                        value={formData.contactno} 
+                        onChange={handleInputChange}
+                        placeholder="Enter contact number (numbers only)"
+                      />
+                      {validationErrors.contactno && (
+                        <div className="invalid-feedback">
+                          {validationErrors.contactno}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -434,7 +557,23 @@ const UserCreatePage = () => {
                     <div className="form-group row mb-0">
                       <div className="form-group col-md-6">
                         <label htmlFor="share">{getRoleDisplayName(userRole)} Share</label>
-                        <input type="number" min="0" max="98.5" name="share" placeholder="Share" className="form-control shadow-none" step="0.01" required value={formData.share} onChange={handleInputChange} />
+                        <input 
+                          type="number" 
+                          min="0" 
+                          max="98.5" 
+                          name="share" 
+                          placeholder="Share" 
+                          className={`form-control shadow-none ${validationErrors.share ? 'is-invalid' : ''}`} 
+                          step="0.01" 
+                          required 
+                          value={formData.share} 
+                          onChange={handleInputChange} 
+                        />
+                        {validationErrors.share && (
+                          <div className="invalid-feedback">
+                            {validationErrors.share}
+                          </div>
+                        )}
                       </div>
                       <div className="form-group col-md-6">
                         <label>My Share (Parent)</label>

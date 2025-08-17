@@ -1,4 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+import { prisma } from '../../../lib/prisma';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'L9vY7z!pQkR#eA1dT3u*Xj5@FbNmC2Ws';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -15,94 +19,79 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Mock authentication for development based on actual user codes
-    // In production, this would validate against the database
-    if (username === 'OWN0001' && password === '123456') {
-      const mockUser = {
-        id: '1',
-        name: 'Owner User',
-        email: 'owner@example.com',
-        role: 'OWNER',
-        subdomain: 'admin',
-        userCode: 'OWN0001'
-      };
+    // Query the database for the user
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: username },
+          { code: username }
+        ],
+        isActive: true
+      },
+      include: {
+        UserCommissionShare: true
+      }
+    });
 
-      return res.status(200).json({
-        success: true,
-        user: mockUser,
-        message: 'Login successful'
-      });
-    } else if (username === 'SUD0006' && password === '123456') {
-      const mockUser = {
-        id: '2',
-        name: 'Super Admin User',
-        email: 'superadmin@example.com',
-        role: 'SUPER_ADMIN',
-        subdomain: 'admin',
-        userCode: 'SUD0006'
-      };
-
-      return res.status(200).json({
-        success: true,
-        user: mockUser,
-        message: 'Login successful'
-      });
-    } else if (username === 'owner@example.com' && password === 'pass123') {
-      const mockUser = {
-        id: '1',
-        name: 'Owner User',
-        email: 'owner@example.com',
-        role: 'OWNER',
-        subdomain: 'admin',
-        userCode: 'OWN0001'
-      };
-
-      return res.status(200).json({
-        success: true,
-        user: mockUser,
-        message: 'Login successful'
-      });
-    } else if (username === 'admin@example.com' && password === 'pass123') {
-      const mockUser = {
-        id: '2',
-        name: 'Admin User',
-        email: 'admin@example.com',
-        role: 'ADMIN',
-        subdomain: 'admin',
-        userCode: 'ADM0001'
-      };
-
-      return res.status(200).json({
-        success: true,
-        user: mockUser,
-        message: 'Login successful'
-      });
-    } else if (username === 'client@example.com' && password === 'pass123') {
-      const mockUser = {
-        id: '3',
-        name: 'Client User',
-        email: 'client@example.com',
-        role: 'USER',
-        subdomain: 'client',
-        userCode: 'CLI0001'
-      };
-
-      return res.status(200).json({
-        success: true,
-        user: mockUser,
-        message: 'Login successful'
-      });
-    } else {
+    if (!user) {
       return res.status(401).json({ 
         success: false, 
-        message: 'Invalid credentials' 
+        message: 'User not found or inactive' 
       });
     }
+
+    // Plain text password validation (as requested)
+    if (user.password !== password) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid password' 
+      });
+    }
+
+    // Generate JWT token for session
+    const sessionToken = jwt.sign(
+      { 
+        userId: user.id, 
+        username: user.username, 
+        role: user.role 
+      }, 
+      JWT_SECRET, 
+      { expiresIn: '24h' }
+    );
+
+    // Set session token as HTTP-only cookie
+    res.setHeader('Set-Cookie', `sessionToken=${sessionToken}; HttpOnly; Path=/; Max-Age=86400; SameSite=Strict`);
+
+    // Return real user data from database
+    const userResponse = {
+      id: user.id,
+      name: user.name || user.username,
+      username: user.username,
+      role: user.role,
+      code: user.code,
+      balance: user.balance,
+      creditLimit: user.creditLimit,
+      exposure: user.exposure,
+      isActive: user.isActive,
+      casinoStatus: user.casinoStatus,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+
+    return res.status(200).json({
+      success: true,
+      user: userResponse,
+      message: 'Login successful',
+      sessionToken: sessionToken // Also return token in response for frontend use
+    });
+
   } catch (error) {
     console.error('Login API error:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Internal server error' 
     });
+  } finally {
+    await prisma.$disconnect();
   }
 }

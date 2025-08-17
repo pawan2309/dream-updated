@@ -265,7 +265,18 @@ const CreateSuperAdmin = () => {
                     <div className="form-group"><label>Name</label><input type="text" name="name" className="form-control shadow-none" required value={form.name} onChange={handleChange} /></div>
                     <div className="form-group"><label>Reference</label><input type="text" name="reference" className="form-control shadow-none" required value={form.reference} onChange={handleChange} /></div>
                     <div className="form-group"><label>Password</label><div className="input-group "><input type="text" name="password" className="form-control shadow-none" required value={form.password} onChange={handleChange} /><span className="input-group-append"><button type="button" className="generate-password btn btn-info btn-flat" onClick={generatePassword}>Generate Password</button></span></div></div>
-                    <div className="form-group"><label>Contact No</label><input type="number" name="contactno" className="form-control shadow-none" required value={form.contactno} onChange={handleChange} /></div>
+                    <div className="form-group">
+                      <label>Contact No</label>
+                      <input 
+                        type="text" 
+                        name="contactno" 
+                        className="form-control shadow-none" 
+                        required 
+                        value={form.contactno} 
+                        onChange={handleChange}
+                        placeholder="Enter contact number (numbers only)"
+                      />
+                    </div>
                     <div className="form-group"><label>Balance</label><input type="number" name="balance" className="form-control shadow-none" value={form.balance} onChange={handleChange} /></div>
                   </div>
                 </div>

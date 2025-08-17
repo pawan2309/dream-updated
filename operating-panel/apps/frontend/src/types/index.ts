@@ -42,8 +42,17 @@ export interface MatkaGame extends TableRow {
 export interface User extends TableRow {
   id: string;
   username: string;
+  name?: string;
+  role: 'OWNER' | 'SUB_OWNER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUB' | 'MASTER' | 'SUPER_AGENT' | 'AGENT' | 'USER';
+  code?: string;
   balance: number;
+  creditLimit: number;
+  exposure: number;
   status: 'active' | 'suspended';
+  isActive: boolean;
+  casinoStatus?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface WebsiteSettings {

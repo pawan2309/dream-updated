@@ -8,7 +8,7 @@ import ProtectedRoute from '../../../components/ProtectedRoute'
 export default function Dashboard() {
   return (
     <ProtectedRoute>
-      <div className="min-h-dvh bg-white relative">
+      <div className="min-h-dvh bg-white relative pt-[60px]">
         <Header />
         <div className="flex-1 p-2">
           <DashboardGrid />

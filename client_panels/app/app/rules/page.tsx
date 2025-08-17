@@ -2,7 +2,7 @@ import Header from '../../../components/Header'
 
 export default function Rules() {
   return (
-    <div className="min-h-dvh bg-white relative">
+    <div className="min-h-dvh bg-white relative pt-[60px]">
       <Header />
       <div className="flex-1 p-4">
         <div className="max-w-4xl mx-auto">

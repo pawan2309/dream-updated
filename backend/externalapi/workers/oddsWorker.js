@@ -1,163 +1,201 @@
 const logger = require('../utils/logger');
 const redis = require('../utils/redis');
-const database = require('../utils/database');
+const config = require('../../config');
 
-async function oddsWorker(job) {
-    const { name, data } = job;
-    
+/**
+ * Odds Worker - Fetches betting odds from external APIs
+ * This worker processes jobs from the odds-data-queue
+ */
+async function processOddsJob(job) {
     try {
-        logger.info(`👷 Processing odds job: ${name} (ID: ${job.id})`);
+        logger.info(`🔄 Processing odds job ${job.id} of type ${job.name}`);
         
-        switch (name) {
-            case 'process-cricket-odds':
-                return await processCricketOdds(data);
-            
-            case 'process-odds-data':
-                return await processOddsData(data);
-            
+        const { data } = job;
+        const { jobType, matchId, forceRefresh = false } = data;
+        
+        let result;
+        
+        switch (jobType) {
+            case 'fetchOdds':
+                result = await fetchAllOdds(forceRefresh);
+                break;
+                
+            case 'fetchMatchOdds':
+                if (!matchId) {
+                    throw new Error('matchId required for fetchMatchOdds job');
+                }
+                result = await fetchMatchOdds(matchId, forceRefresh);
+                break;
+                
+            case 'refreshOdds':
+                result = await refreshAllOdds();
+                break;
+                
             default:
-                throw new Error(`Unknown odds job type: ${name}`);
+                throw new Error(`Unknown odds job type: ${jobType}`);
         }
         
+        logger.info(`✅ Odds job ${job.id} completed successfully`);
+        return result;
+        
     } catch (error) {
-        logger.error(`❌ Odds worker failed for job ${job.id}:`, error);
+        logger.error(`❌ Odds job ${job.id} failed:`, error);
+        throw error; // Re-throw for BullMQ retry handling
+    }
+}
+
+/**
+ * Fetch all odds from external API
+ */
+async function fetchAllOdds(forceRefresh = false) {
+    try {
+        const cacheKey = 'odds:all';
+        
+        // Check cache first (unless force refresh)
+        if (!forceRefresh) {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                logger.info('📋 Returning cached odds data');
+                return cached;
+            }
+        }
+        
+        logger.info('🌐 Fetching fresh odds data from API...');
+        
+        // Fetch from external API
+        const response = await fetch(config.api.cricketOddsFeed);
+        if (!response.ok) {
+            throw new Error(`API responded with status: ${response.status}`);
+        }
+        
+        const odds = await response.json();
+        
+        // Normalize and cache the data
+        const normalized = normalizeOdds(odds);
+        await redis.set(cacheKey, normalized, config.ttl.cricketOdds);
+        
+        // Also cache individual match odds for quick access
+        await cacheIndividualMatchOdds(normalized);
+        
+        logger.info(`✅ Fetched and cached odds for ${normalized.length} matches`);
+        return normalized;
+        
+    } catch (error) {
+        logger.error('❌ Failed to fetch odds data:', error);
         throw error;
     }
 }
 
-async function processCricketOdds(data) {
+/**
+ * Fetch odds for a specific match
+ */
+async function fetchMatchOdds(matchId, forceRefresh = false) {
     try {
-        const { data: odds, timestamp } = data;
+        const cacheKey = `odds:match:${matchId}`;
         
-        logger.info(`📊 Processing ${odds.length} cricket odds`);
-        
-        for (const odd of odds) {
-            // Cache odds in Redis for fast access
-            const cacheKey = `odds:cricket:${odd.matchId}`;
-            await redis.set(cacheKey, odd, 30); // 30 seconds TTL
-            
-            // Store in PostgreSQL for historical data
-            try {
-                await database.insert('cricket_odds_history', {
-                    match_id: odd.matchId,
-                    odds_data: JSON.stringify(odd.odds),
-                    timestamp: odd.timestamp,
-                    created_at: new Date()
-                });
-            } catch (dbError) {
-                logger.error(`❌ Failed to store cricket odds for match ${odd.matchId}:`, dbError);
+        // Check cache first
+        if (!forceRefresh) {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                logger.info(`📋 Returning cached odds for match ${matchId}`);
+                return cached;
             }
         }
         
-        // Cache latest odds summary
-        await redis.set('odds:cricket:latest', odds, 15); // 15 seconds TTL
+        logger.info(`🌐 Fetching fresh odds for match ${matchId}...`);
         
-        logger.info(`✅ Processed ${odds.length} cricket odds`);
-        return { processed: odds.length, timestamp };
+        // Try to get from the main odds cache first
+        const allOdds = await redis.get('odds:all');
+        if (allOdds) {
+            const matchOdds = allOdds.find(odd => odd.matchId === matchId);
+            if (matchOdds) {
+                await redis.set(cacheKey, matchOdds, config.ttl.cricketOdds);
+                return matchOdds;
+            }
+        }
+        
+        // If not found, fetch from API (you might need to adjust this URL)
+        const response = await fetch(`${config.api.cricketOddsFeed}?matchId=${matchId}`);
+        if (!response.ok) {
+            throw new Error(`API responded with status: ${response.status}`);
+        }
+        
+        const matchOdds = await response.json();
+        
+        // Cache the match odds
+        await redis.set(cacheKey, matchOdds, config.ttl.cricketOdds);
+        
+        logger.info(`✅ Fetched and cached odds for match ${matchId}`);
+        return matchOdds;
         
     } catch (error) {
-        logger.error('❌ Failed to process cricket odds:', error);
+        logger.error(`❌ Failed to fetch odds for match ${matchId}:`, error);
         throw error;
     }
 }
 
-async function processOddsData(data) {
+/**
+ * Refresh all odds (force refresh)
+ */
+async function refreshAllOdds() {
     try {
-        const { data: oddsData, timestamp } = data;
+        logger.info('🔄 Refreshing all odds data...');
         
-        logger.info(`📊 Processing ${oddsData.length} odds data`);
+        // Clear odds cache
+        await redis.del('odds:all');
         
-        for (const odd of oddsData) {
-            // Cache odds in Redis for fast access
-            const cacheKey = `odds:event:${odd.eventId}`;
-            await redis.set(cacheKey, odd, 30); // 30 seconds TTL
-            
-            // Store in PostgreSQL for historical data
-            try {
-                await database.insert('odds_history', {
-                    event_id: odd.eventId,
-                    odds_data: JSON.stringify(odd.odds),
-                    timestamp: odd.timestamp,
-                    created_at: new Date()
-                });
-            } catch (dbError) {
-                logger.error(`❌ Failed to store odds for event ${odd.eventId}:`, dbError);
-            }
-        }
+        // Fetch fresh data
+        const result = await fetchAllOdds(true);
         
-        // Cache latest odds summary
-        await redis.set('odds:latest', oddsData, 15); // 15 seconds TTL
-        
-        // Update odds statistics
-        await updateOddsStatistics(oddsData);
-        
-        logger.info(`✅ Processed ${oddsData.length} odds data`);
-        return { processed: oddsData.length, timestamp };
+        logger.info('✅ All odds refreshed successfully');
+        return result;
         
     } catch (error) {
-        logger.error('❌ Failed to process odds data:', error);
+        logger.error('❌ Failed to refresh odds:', error);
         throw error;
     }
 }
 
-async function updateOddsStatistics(oddsData) {
+/**
+ * Cache individual match odds for quick access
+ */
+async function cacheIndividualMatchOdds(allOdds) {
     try {
-        // Calculate average odds for different markets
-        const marketStats = {};
-        
-        for (const odd of oddsData) {
-            const odds = odd.odds;
-            
-            // Process different types of odds
-            if (odds.home && odds.away) {
-                if (!marketStats.matchWinner) {
-                    marketStats.matchWinner = {
-                        total: 0,
-                        homeAvg: 0,
-                        awayAvg: 0,
-                        homeTotal: 0,
-                        awayTotal: 0
-                    };
-                }
-                
-                marketStats.matchWinner.total++;
-                marketStats.matchWinner.homeTotal += odds.home;
-                marketStats.matchWinner.awayTotal += odds.away;
-                marketStats.matchWinner.homeAvg = marketStats.matchWinner.homeTotal / marketStats.matchWinner.total;
-                marketStats.matchWinner.awayAvg = marketStats.matchWinner.awayTotal / marketStats.matchWinner.total;
-            }
-            
-            if (odds.team1 && odds.team2 && odds.draw) {
-                if (!marketStats.threeWay) {
-                    marketStats.threeWay = {
-                        total: 0,
-                        team1Avg: 0,
-                        team2Avg: 0,
-                        drawAvg: 0,
-                        team1Total: 0,
-                        team2Total: 0,
-                        drawTotal: 0
-                    };
-                }
-                
-                marketStats.threeWay.total++;
-                marketStats.threeWay.team1Total += odds.team1;
-                marketStats.threeWay.team2Total += odds.team2;
-                marketStats.threeWay.drawTotal += odds.draw;
-                marketStats.threeWay.team1Avg = marketStats.threeWay.team1Total / marketStats.threeWay.total;
-                marketStats.threeWay.team2Avg = marketStats.threeWay.team2Total / marketStats.threeWay.total;
-                marketStats.threeWay.drawAvg = marketStats.threeWay.drawTotal / marketStats.threeWay.total;
+        for (const matchOdds of allOdds) {
+            if (matchOdds.matchId) {
+                const cacheKey = `odds:match:${matchOdds.matchId}`;
+                await redis.set(cacheKey, matchOdds, config.ttl.cricketOdds);
             }
         }
-        
-        // Cache statistics in Redis
-        await redis.set('odds:statistics', marketStats, 3600); // 1 hour TTL
-        
-        logger.debug('📊 Updated odds statistics');
-        
+        logger.debug(`📝 Cached individual odds for ${allOdds.length} matches`);
     } catch (error) {
-        logger.error('❌ Failed to update odds statistics:', error);
+        logger.error('❌ Failed to cache individual match odds:', error);
     }
 }
 
-module.exports = oddsWorker; 
+/**
+ * Normalize odds data structure
+ */
+function normalizeOdds(odds) {
+    if (!Array.isArray(odds)) {
+        return [];
+    }
+    
+    return odds.map(odd => ({
+        matchId: odd.matchId || odd.id,
+        matchName: odd.matchName || odd.name,
+        team1: odd.team1 || odd.homeTeam,
+        team2: odd.team2 || odd.awayTeam,
+        startTime: odd.startTime || odd.startDate,
+        status: odd.status || 'scheduled',
+        odds: {
+            team1Win: odd.odds?.team1Win || odd.odds?.home || 0,
+            team2Win: odd.odds?.team2Win || odd.odds?.away || 0,
+            draw: odd.odds?.draw || 0,
+            // Add more odds types as needed
+        },
+        lastUpdated: new Date().toISOString()
+    }));
+}
+
+module.exports = processOddsJob; 

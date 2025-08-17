@@ -215,7 +215,10 @@ export class CommissionCalculator {
    */
   static async getUserCommissionSummary(userId: string): Promise<any> {
     const user = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      include: {
+        UserCommissionShare: true
+      }
     });
 
     if (!user) {
@@ -238,13 +241,13 @@ export class CommissionCalculator {
       userId,
       userRole: user.role,
       commissionConfig: {
-        share: user.share || 0,
-        matchcommission: user.matchcommission || 0,
-        sessioncommission: user.sessioncommission || 0,
+        share: user.UserCommissionShare?.share || 0,
+        matchcommission: user.UserCommissionShare?.matchcommission || 0,
+        sessioncommission: user.UserCommissionShare?.sessioncommission || 0,
         mobileshare: user.mobileshare || 0,
-        casinocommission: user.casinocommission || 0,
-        cshare: user.cshare || 0,
-        icshare: user.icshare || 0
+        casinocommission: user.UserCommissionShare?.casinocommission || 0,
+        cshare: user.UserCommissionShare?.cshare || 0,
+        icshare: user.UserCommissionShare?.icshare || 0
       },
       totalCommissions,
       commissionBreakdown

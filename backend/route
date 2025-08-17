@@ -1,0 +1,478 @@
+const express = require('express');
+const axios = require('axios');
+const path = require('path');
+const fs = require('fs');
+// Simple UUID generator
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+const router = express.Router();
+
+// Import existing utilities
+const logger = require('./externalapi/utils/logger');
+const redisClient = require('./externalapi/utils/redis');
+const config = require('./config');
+
+// Import proxy services
+const ProviderConfigManager = require('./services/ProviderConfigManager');
+const RequestProxyService = require('./services/RequestProxyService');
+const CacheManager = require('./services/CacheManager');
+
+// Import middleware
+const {
+  authenticate,
+  authorizeProvider,
+  validateRequest,
+  globalRateLimit,
+  providerRateLimit,
+  logAuthEvents
+} = require('./middleware/proxyAuth');
+
+// Configuration file path
+const PROXY_CONFIG_PATH = path.join(__dirname, 'proxy-config.json');
+
+// Initialize services
+let configManager;
+let proxyService;
+let cacheManager;
+
+// Initialize services
+try {
+  configManager = new ProviderConfigManager(PROXY_CONFIG_PATH);
+  cacheManager = new CacheManager(redisClient, logger);
+  proxyService = new RequestProxyService(cacheManager, logger);
+  
+  // Load initial configuration
+  configManager.loadConfig();
+  
+  // Start watching for configuration changes
+  configManager.startWatching();
+  
+  logger.info('✅ Proxy services initialized successfully');
+} catch (error) {
+  logger.error('❌ Failed to initialize proxy services:', error);
+}
+
+// Apply global middleware
+router.use(logAuthEvents);
+router.use(globalRateLimit);
+
+/**
+ * Main proxy endpoint
+ */
+router.post('/api/:provider', 
+  authenticate,
+  validateRequest,
+  authorizeProvider,
+  async (req, res) => {
+    const requestId = generateUUID();
+    const startTime = Date.now();
+    
+    try {
+      const { provider: providerId } = req.params;
+      const { 
+        endpoint, 
+        method = 'GET', 
+        headers = {}, 
+        body, 
+        queryParams = {} 
+      } = req.body;
+
+      logger.info(`🚀 Proxy request initiated`, {
+        requestId,
+        providerId,
+        endpoint,
+        method,
+        userId: req.user?.id,
+        userAgent: req.get('User-Agent'),
+        ip: req.ip
+      });
+
+      // Get provider configuration
+      let providerConfig;
+      try {
+        providerConfig = configManager.getProviderConfig(providerId);
+      } catch (error) {
+        return res.status(404).json({
+          error: {
+            code: 'PROVIDER_NOT_FOUND',
+            message: `Provider '${providerId}' not found`,
+            requestId,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+
+      // Apply provider-specific rate limiting
+      const rateLimitMiddleware = providerRateLimit(providerConfig);
+      rateLimitMiddleware(req, res, async (rateLimitError) => {
+        if (rateLimitError) {
+          return; // Rate limit middleware already sent response
+        }
+
+        try {
+          // Forward request through proxy service
+          const response = await proxyService.proxyRequest(
+            providerConfig,
+            endpoint,
+            method,
+            headers,
+            body,
+            queryParams,
+            requestId
+          );
+
+          const responseTime = Date.now() - startTime;
+
+          logger.info(`✅ Proxy request completed`, {
+            requestId,
+            providerId,
+            endpoint,
+            status: response.status,
+            cached: response.cached,
+            fallback: response.fallback,
+            responseTime,
+            userId: req.user?.id
+          });
+
+          // Send successful response
+          res.status(response.status).json({
+            success: true,
+            data: response.data,
+            meta: {
+              requestId,
+              provider: providerId,
+              endpoint,
+              method,
+              cached: response.cached,
+              fallback: response.fallback || false,
+              responseTime,
+              timestamp: new Date().toISOString()
+            }
+          });
+
+        } catch (proxyError) {
+          const responseTime = Date.now() - startTime;
+          
+          logger.error(`❌ Proxy request failed`, {
+            requestId,
+            providerId,
+            endpoint,
+            error: proxyError.message,
+            status: proxyError.status,
+            responseTime,
+            userId: req.user?.id
+          });
+
+          // Send error response
+          const statusCode = proxyError.status || 500;
+          res.status(statusCode).json({
+            error: {
+              code: proxyError.name || 'PROXY_ERROR',
+              message: proxyError.message,
+              requestId,
+              provider: providerId,
+              endpoint,
+              responseTime,
+              timestamp: new Date().toISOString()
+            }
+          });
+        }
+      });
+
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      
+      logger.error(`❌ Proxy request error`, {
+        requestId,
+        error: error.message,
+        stack: error.stack,
+        responseTime
+      });
+
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Internal server error',
+          requestId,
+          responseTime,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+  }
+);
+
+/**
+ * Health check endpoint
+ */
+router.get('/health', async (req, res) => {
+  try {
+    const health = {
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      service: 'aws-ip-proxy',
+      version: '1.0.0',
+      providers: {},
+      cache: {
+        status: 'unknown',
+        connection: false,
+        stats: {}
+      },
+      services: {
+        configManager: false,
+        proxyService: false,
+        cacheManager: false
+      }
+    };
+
+    // Check service availability
+    health.services.configManager = !!configManager;
+    health.services.proxyService = !!proxyService;
+    health.services.cacheManager = !!cacheManager;
+
+    // Check Redis connection and cache health
+    try {
+      if (cacheManager) {
+        const cacheHealth = await cacheManager.healthCheck();
+        health.cache.status = cacheHealth.healthy ? 'healthy' : 'error';
+        health.cache.connection = cacheHealth.healthy;
+        health.cache.stats = cacheHealth.stats;
+      }
+    } catch (error) {
+      health.cache.status = 'error';
+      health.cache.connection = false;
+      health.cache.error = error.message;
+    }
+
+    // Check provider configurations
+    if (configManager) {
+      try {
+        const providers = configManager.getAllProviders();
+        for (const [providerId, provider] of Object.entries(providers)) {
+          health.providers[providerId] = {
+            name: provider.name,
+            status: 'configured',
+            baseUrl: provider.baseUrl,
+            timeout: provider.timeout,
+            cacheTtl: provider.cacheTtl
+          };
+        }
+      } catch (error) {
+        health.providers.error = error.message;
+      }
+    }
+
+    // Determine overall health status
+    const hasProviderErrors = Object.values(health.providers).some(p => p.status === 'error');
+    const hasServiceErrors = !Object.values(health.services).every(s => s);
+    
+    if (hasProviderErrors || hasServiceErrors || !health.cache.connection) {
+      health.status = 'DEGRADED';
+    }
+
+    const statusCode = health.status === 'OK' ? 200 : 503;
+    res.status(statusCode).json(health);
+    
+  } catch (error) {
+    logger.error('❌ Health check failed:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      service: 'aws-ip-proxy',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Configuration status endpoint
+ */
+router.get('/config', authenticate, async (req, res) => {
+  try {
+    if (!configManager) {
+      return res.status(503).json({
+        error: 'Configuration manager not available'
+      });
+    }
+
+    const stats = configManager.getStats();
+    const globalConfig = configManager.getGlobalConfig();
+    const providers = configManager.getAllProviders();
+
+    const configStatus = {
+      loaded: true,
+      stats,
+      providers: Object.keys(providers),
+      providerCount: Object.keys(providers).length,
+      global: globalConfig,
+      providerDetails: Object.fromEntries(
+        Object.entries(providers).map(([id, config]) => [
+          id,
+          {
+            name: config.name,
+            baseUrl: config.baseUrl,
+            timeout: config.timeout,
+            retries: config.retries,
+            cacheTtl: config.cacheTtl,
+            rateLimit: config.rateLimit
+          }
+        ])
+      )
+    };
+
+    res.status(200).json(configStatus);
+  } catch (error) {
+    logger.error('❌ Configuration status check failed:', error);
+    res.status(500).json({
+      error: 'Failed to get configuration status',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Cache management endpoints
+ */
+router.get('/cache/stats', authenticate, async (req, res) => {
+  try {
+    if (!cacheManager) {
+      return res.status(503).json({
+        error: 'Cache manager not available'
+      });
+    }
+
+    const stats = cacheManager.getStats();
+    const size = await cacheManager.getCacheSize();
+
+    res.json({
+      stats,
+      size,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('❌ Cache stats error:', error);
+    res.status(500).json({
+      error: 'Failed to get cache statistics',
+      message: error.message
+    });
+  }
+});
+
+router.delete('/cache/:provider?', authenticate, async (req, res) => {
+  try {
+    if (!cacheManager) {
+      return res.status(503).json({
+        error: 'Cache manager not available'
+      });
+    }
+
+    const { provider } = req.params;
+    let clearedCount;
+
+    if (provider) {
+      clearedCount = await cacheManager.clearProvider(provider);
+      logger.info(`Cache cleared for provider: ${provider} (${clearedCount} entries)`, {
+        userId: req.user?.id
+      });
+    } else {
+      clearedCount = await cacheManager.clearAll();
+      logger.info(`All cache cleared (${clearedCount} entries)`, {
+        userId: req.user?.id
+      });
+    }
+
+    res.json({
+      success: true,
+      message: provider 
+        ? `Cache cleared for provider: ${provider}`
+        : 'All cache cleared',
+      clearedCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('❌ Cache clear error:', error);
+    res.status(500).json({
+      error: 'Failed to clear cache',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Reload configuration endpoint
+ */
+router.post('/config/reload', authenticate, async (req, res) => {
+  try {
+    if (!configManager) {
+      return res.status(503).json({
+        error: 'Configuration manager not available'
+      });
+    }
+
+    // Check if user has admin permissions
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        error: {
+          code: 'INSUFFICIENT_PERMISSIONS',
+          message: 'Admin role required to reload configuration'
+        }
+      });
+    }
+
+    const newConfig = configManager.reloadConfig();
+    
+    logger.info('Configuration reloaded', {
+      userId: req.user?.id,
+      providerCount: Object.keys(newConfig.providers).length
+    });
+
+    res.json({
+      success: true,
+      message: 'Configuration reloaded successfully',
+      providerCount: Object.keys(newConfig.providers).length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('❌ Configuration reload error:', error);
+    res.status(500).json({
+      error: 'Failed to reload configuration',
+      message: error.message
+    });
+  }
+});
+
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  logger.info('🛑 SIGTERM received, shutting down proxy services...');
+  if (configManager) {
+    configManager.destroy();
+  }
+  if (proxyService) {
+    proxyService.destroy();
+  }
+  if (cacheManager) {
+    cacheManager.destroy();
+  }
+});
+
+process.on('SIGINT', () => {
+  logger.info('🛑 SIGINT received, shutting down proxy services...');
+  if (configManager) {
+    configManager.destroy();
+  }
+  if (proxyService) {
+    proxyService.destroy();
+  }
+  if (cacheManager) {
+    cacheManager.destroy();
+  }
+});
+
+logger.info('🚀 AWS IP Proxy route initialized successfully');
+
+module.exports = router;

@@ -72,8 +72,8 @@ const LoginPage = () => {
           window.location.href = 'http://localhost:3001'; // Change this port if needed
         } else {
           console.log('👤 Regular user, redirecting to main dashboard');
-          // Use window.location.href for full page reload to ensure cookie is set
-          window.location.href = '/';
+          // Use router.push for client-side navigation
+          router.push('/');
         }
       } else {
         console.log('❌ Login failed: Unknown error');

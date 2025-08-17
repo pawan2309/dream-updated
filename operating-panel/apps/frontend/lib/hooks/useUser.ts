@@ -3,53 +3,71 @@ import { useState, useEffect } from 'react';
 interface User {
   id: string;
   username: string;
-  role: 'ADMIN' | 'USER' | 'OWNER' | 'admin' | 'user' | 'owner';
-  email?: string;
+  name?: string;
+  role: 'OWNER' | 'SUB_OWNER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUB' | 'MASTER' | 'SUPER_AGENT' | 'AGENT' | 'USER';
+  code?: string;
+  balance: number;
+  creditLimit: number;
+  exposure: number;
+  isActive: boolean;
+  casinoStatus?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export function useUser() {
+interface UseUserReturn {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+  logout: () => void;
+  isAdmin: boolean;
+  isOwner: boolean;
+  isSuperAdmin: boolean;
+}
+
+export function useUser(): UseUserReturn {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Calculate role-based permissions
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const isOwner = user?.role === 'OWNER';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   useEffect(() => {
-    // Check for user session
-    const checkUser = async () => {
-      try {
-        console.log('🔍 Checking user session...');
-        const response = await fetch('/api/auth/session');
-        console.log('🔍 Session response status:', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('🔍 Session data:', data);
-          if (data.user) {
-            console.log('✅ User found:', data.user);
-            setUser(data.user);
-          } else {
-            console.log('❌ No user in session data');
-          }
-        } else {
-          console.log('❌ Session response not ok:', response.status);
-          const errorData = await response.json().catch(() => ({}));
-          console.log('❌ Session error:', errorData);
-        }
-      } catch (error) {
-        console.error('❌ Error checking user session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkUser();
+    checkSession();
   }, []);
 
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'OWNER' || user?.role === 'admin' || user?.role === 'owner';
-  const isOwner = user?.role === 'OWNER' || user?.role === 'owner';
-
-  return {
-    user,
-    loading,
-    isAdmin,
-    isOwner
+  const checkSession = async () => {
+    try {
+      const response = await fetch('/api/auth/session');
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.user) {
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      setError('Failed to check session');
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const logout = () => {
+    setUser(null);
+    setError(null);
+    // Clear any stored session data
+    document.cookie = 'sessionToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    window.location.href = '/login';
+  };
+
+  return { user, loading, error, logout, isAdmin, isOwner, isSuperAdmin };
 } 

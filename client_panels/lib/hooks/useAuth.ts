@@ -9,6 +9,8 @@ interface User {
   isActive: boolean
   code: string
   contactno: string
+  creditLimit: number
+  exposure: number
 }
 
 interface AuthState {
@@ -47,11 +49,22 @@ export function useAuth() {
 
       if (response.ok) {
         const data = await response.json()
-        setAuthState({
-          user: data.user,
-          loading: false,
-          authenticated: true
-        })
+        if (data.success && data.authenticated && data.user) {
+          setAuthState({
+            user: data.user,
+            loading: false,
+            authenticated: true
+          })
+        } else {
+          // Session invalid, clear localStorage
+          localStorage.removeItem('authToken')
+          localStorage.removeItem('userData')
+          setAuthState({
+            user: null,
+            loading: false,
+            authenticated: false
+          })
+        }
       } else {
         // Token is invalid, clear localStorage
         localStorage.removeItem('authToken')
@@ -86,23 +99,27 @@ export function useAuth() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || 'Login failed')
+        throw new Error(errorData.error || 'Login failed')
       }
 
       const data = await response.json()
       
-      // Store authentication token
-      localStorage.setItem('authToken', data.token)
-      localStorage.setItem('userData', JSON.stringify(data.user))
+      if (data.success && data.token && data.user) {
+        // Store authentication token
+        localStorage.setItem('authToken', data.token)
+        localStorage.setItem('userData', JSON.stringify(data.user))
 
-      // Update auth state immediately
-      setAuthState({
-        user: data.user,
-        loading: false,
-        authenticated: true
-      })
+        // Update auth state immediately
+        setAuthState({
+          user: data.user,
+          loading: false,
+          authenticated: true
+        })
 
-      return { success: true, user: data.user }
+        return { success: true, user: data.user }
+      } else {
+        throw new Error('Invalid response from server')
+      }
     } catch (error) {
       return { 
         success: false, 
