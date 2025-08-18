@@ -26,7 +26,7 @@ interface MarketCardProps {
       name: string;
       odds: number;
       status: string;
-      type: 'back' | 'lay'; // Added type
+      type?: 'back' | 'lay'; // Made type optional
       tier?: number; // Added tier
       stake?: number; // Added stake
     }>;

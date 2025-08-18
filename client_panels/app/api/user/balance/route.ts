@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -39,7 +40,6 @@ export async function GET(request: NextRequest) {
       console.log('🔍 [BALANCE API] Using frontend Prisma to fetch user data...');
       
       // Import Prisma and fetch user data directly
-      const { PrismaClient } = require('@prisma/client');
       const prisma = new PrismaClient();
       
       const user = await prisma.user.findUnique({

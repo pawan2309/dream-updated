@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const jwtAuth = require('../../shared/middleware/jwtAuth');
 const database = require('../utils/database');
+const ExposureService = require('../services/exposureService');
+const CommissionService = require('../services/commissionService');
 
 // POST /api/bet-settlement/settle-match - Settle a completed match
 router.post('/settle-match', jwtAuth(), async (req, res) => {
@@ -68,12 +70,35 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
       for (const bet of pendingBets) {
         totalStakes += bet.stake;
 
-        // Determine if bet won or lost
-        const betWon = bet.selectionName && bet.selectionName.includes(winner);
+        // Determine if bet won or lost based on bet type
+        let betWon = false;
+        let wonAmount = 0;
+        let lostAmount = 0;
+        
+        if (bet.type === 'back') {
+          // Back bet: wins if selection matches winner
+          betWon = bet.selectionName && bet.selectionName.includes(winner);
+          if (betWon) {
+            wonAmount = bet.potentialWin;
+            lostAmount = 0;
+          } else {
+            wonAmount = 0;
+            lostAmount = bet.stake;
+          }
+        } else if (bet.type === 'lay') {
+          // Lay bet: wins if selection does NOT match winner
+          betWon = !(bet.selectionName && bet.selectionName.includes(winner));
+          if (betWon) {
+            wonAmount = bet.stake; // Lay bet wins the stake amount
+            lostAmount = 0;
+          } else {
+            wonAmount = 0;
+            lostAmount = bet.potentialWin; // Lay bet loses potential win amount
+          }
+        }
         
         if (betWon) {
-          // Bet won - calculate winnings
-          const wonAmount = bet.potentialWin;
+          // Bet won - update bet status
           bet.wonAmount = wonAmount;
           bet.lostAmount = 0;
           bet.result = winner;
@@ -83,9 +108,16 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
           totalWinnings += wonAmount;
           winningBets++;
 
-          // Update user balance (add winnings)
+          // Calculate commission on winnings
+          const commissionResult = await CommissionService.calculateCommission(
+            bet.userId, 
+            wonAmount, 
+            'match'
+          );
+
+          // Update user balance (add net winnings after commission)
           const user = await database.findOne('User', { id: bet.userId });
-          const newBalance = (user.balance || 0) + wonAmount;
+          const newBalance = (user.balance || 0) + commissionResult.netWinnings;
           const newExposure = Math.max(0, (user.exposure || 0) - bet.stake);
 
           await database.update('User', { id: bet.userId }, {
@@ -94,16 +126,25 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
             updatedAt: new Date()
           });
 
+          // Apply commission
+          if (commissionResult.commissionAmount > 0) {
+            await CommissionService.applyCommission(
+              bet.userId, 
+              commissionResult.commissionAmount, 
+              client
+            );
+          }
+
           // Create ledger entry for winnings
           const winLedgerData = {
             id: `ledger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             userId: bet.userId,
             collection: 'BET_WIN',
             debit: 0,
-            credit: wonAmount,
+            credit: commissionResult.netWinnings,
             balanceAfter: newBalance,
             type: 'BET_WIN',
-            remark: `Bet won on ${match.title} - ${bet.selectionName} @ ${bet.odds} - Won ${wonAmount}`,
+            remark: `Bet won on ${match.title} - ${bet.selectionName} @ ${bet.odds} (${bet.type}) - Won ${wonAmount}, Commission: ${commissionResult.commissionAmount}`,
             referenceId: bet.id,
             transactionType: 'BET_WIN',
             matchId: match.id,
@@ -112,15 +153,28 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
 
           await database.insert('Ledger', winLedgerData);
 
+          // Distribute profit/loss up the hierarchy
+          try {
+            await CommissionService.distributeProfitLoss(
+              bet.userId, 
+              commissionResult.netWinnings, 
+              match.id, 
+              client
+            );
+          } catch (error) {
+            console.error('Error distributing profit:', error);
+            // Continue with settlement even if distribution fails
+          }
+
         } else {
-          // Bet lost - calculate loss
+          // Bet lost - update bet status
           bet.wonAmount = 0;
-          bet.lostAmount = bet.stake;
+          bet.lostAmount = lostAmount;
           bet.result = winner;
           bet.status = 'LOST';
           bet.settledAt = new Date();
           
-          totalLosses += bet.stake;
+          totalLosses += lostAmount;
           losingBets++;
 
           // Create ledger entry for loss
@@ -128,11 +182,11 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
             id: `ledger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             userId: bet.userId,
             collection: 'BET_LOSS',
-            debit: bet.stake,
+            debit: lostAmount,
             credit: 0,
             balanceAfter: (await database.findOne('User', { id: bet.userId })).balance,
             type: 'BET_LOSS',
-            remark: `Bet lost on ${match.title} - ${bet.selectionName} @ ${bet.odds} - Lost ${bet.stake}`,
+            remark: `Bet lost on ${match.title} - ${bet.selectionName} @ ${bet.odds} (${bet.type}) - Lost ${lostAmount}`,
             referenceId: bet.id,
             transactionType: 'BET_LOSS',
             matchId: match.id,
@@ -140,6 +194,19 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
           };
 
           await database.insert('Ledger', lossLedgerData);
+
+          // Distribute loss up the hierarchy
+          try {
+            await CommissionService.distributeProfitLoss(
+              bet.userId, 
+              -lostAmount, // Negative amount for loss
+              match.id, 
+              client
+            );
+          } catch (error) {
+            console.error('Error distributing loss:', error);
+            // Continue with settlement even if distribution fails
+          }
         }
 
         // Update bet in database

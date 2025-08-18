@@ -309,6 +309,11 @@ export default function SuperAdminMasterPage() {
         if (!userIds) {
           setSelectedUsers([]);
         }
+        
+        // Auto-refresh the page after successful status update
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000); // 1 second delay to show success state
       } else {
         console.error('Failed to update status:', data.message);
       }
@@ -532,9 +537,9 @@ export default function SuperAdminMasterPage() {
                                 <td>{user.contactno || 'N/A'}</td>
                                 <td>{user.password || 'N/A'}</td>
                                 <td>{(user.creditLimit || 0).toLocaleString()}</td>
-                                <td>{user.userCommissionShare?.matchcommission ?? '0'}</td>
-                                <td>{user.userCommissionShare?.sessioncommission ?? '0'}</td>
-                                <td>{user.userCommissionShare?.share || 0}%</td>
+                                <td>{user.UserCommissionShare?.matchcommission ?? '0'}</td>
+                                <td>{user.UserCommissionShare?.sessioncommission ?? '0'}</td>
+                                <td>{user.UserCommissionShare?.share || 0}%</td>
                                 <td><span className={`badge ${user.isActive ? 'badge-success' : 'badge-danger'}`}>{user.isActive ? 'Active' : 'Inactive'}</span></td>
                               </tr>
                             ))}

@@ -83,56 +83,60 @@ export function canAccessRoute(userRole: string, route: string): boolean {
     return true;
   }
   
+  // Check if this is a restricted section route
+  const isRestrictedSection = route.includes('/commissions') || 
+                             route.includes('/reports/login-reports') || 
+                             route.includes('/old-data');
+  
+  if (isRestrictedSection) {
+    // Only SUB_OWNER can access restricted sections
+    return false;
+  }
+  
   const routeAccessMap: Record<string, string[]> = {
-    // Super Admin routes
-    '/user_details/super_admin': ['SUPER_ADMIN'],
-    '/ct/super_admin': ['SUPER_ADMIN'],
-    '/ledger/super_admin': ['SUPER_ADMIN'],
+    // Super Admin routes - only accessible to roles above SUPER_ADMIN
+    '/user_details/super_admin': ['SUB_OWNER'],
+    '/ct/super_admin': ['SUB_OWNER'],
+    '/ledger/super_admin': ['SUB_OWNER'],
     
-    // Admin routes
-    '/user_details/admin': ['SUPER_ADMIN'],
-    '/ct/admin': ['ADMIN', 'SUPER_ADMIN'],
-    '/ledger/admin': ['ADMIN', 'SUPER_ADMIN'],
+    // Admin routes - only accessible to roles above ADMIN
+    '/user_details/admin': ['SUB_OWNER'],
+    '/ct/admin': ['SUB_OWNER'],
+    '/ledger/admin': ['SUB_OWNER'],
     
-    // Sub Owner routes
-    '/user_details/sub_owner': ['ADMIN', 'SUPER_ADMIN'],
-    '/ct/sub_owner': ['SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ledger/sub_owner': ['SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
+    // Sub Owner routes - only accessible to roles above SUB_OWNER
+    '/user_details/sub_owner': ['SUB_OWNER'],
+    '/ct/sub_owner': ['SUB_OWNER'],
+    '/ledger/sub_owner': ['SUB_OWNER'],
     
-    // Sub Agent routes
-    '/user_details/sub': ['SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ct/sub': ['SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ledger/sub': ['SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
+    // Sub Agent routes - only accessible to roles above SUB
+    '/user_details/sub': ['SUB_OWNER'],
+    '/ct/sub': ['SUB_OWNER'],
+    '/ledger/sub': ['SUB_OWNER'],
     
-    // Master Agent routes
-    '/user_details/master': ['SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ct/master': ['MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ledger/master': ['MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
+    // Master Agent routes - only accessible to roles above MASTER
+    '/user_details/master': ['SUB', 'SUB_OWNER'],
+    '/ct/master': ['SUB', 'SUB_OWNER'],
+    '/ledger/master': ['SUB', 'SUB_OWNER'],
     
-    // Super Agent routes
-    '/user_details/super': ['MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ct/super': ['SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ledger/super': ['SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
+    // Super Agent routes - only accessible to roles above SUPER_AGENT
+    '/user_details/super': ['MASTER', 'SUB', 'SUB_OWNER'],
+    '/ct/super': ['MASTER', 'SUB', 'SUB_OWNER'],
+    '/ledger/super': ['MASTER', 'SUB', 'SUB_OWNER'],
     
-    // Agent routes
-    '/user_details/agent': ['SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ct/agent': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ledger/agent': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
+    // Agent routes - only accessible to roles above AGENT
+    '/user_details/agent': ['SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER'],
+    '/ct/agent': ['SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER'],
+    '/ledger/agent': ['SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER'],
     
-    // Client routes
-    '/user_details/client': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ct/client': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/ledger/client': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
+    // Client routes - only accessible to roles above USER
+    '/user_details/client': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER'],
+    '/ct/client': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER'],
+    '/ledger/client': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER'],
     
-    // Login Reports - only SUB_OWNER and above
-    '/reports/login-reports': ['SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    
-    // Game routes
-    '/game/inPlay': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    '/game/completeGame': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
-    
-    // Commission routes
-    '/commissions': ['AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER', 'ADMIN', 'SUPER_ADMIN'],
+    // Game routes - accessible to all authenticated users
+    '/game/inPlay': ['USER', 'AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER'],
+    '/game/completeGame': ['USER', 'AGENT', 'SUPER_AGENT', 'MASTER', 'SUB', 'SUB_OWNER'],
   };
 
   const allowedRoles = routeAccessMap[route] || [];

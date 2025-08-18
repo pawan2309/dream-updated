@@ -93,9 +93,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         createdAt: true,
         code: true,
         contactno: true,
-        share: true,
-        matchCommission: true,
-        sessionCommission: true,
         parentId: true,
         parent: {
           select: {

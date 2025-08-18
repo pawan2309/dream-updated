@@ -142,7 +142,7 @@ function ErrorFallback({ message, onRetry, showBackButton = false, availableGame
                       href={`/app/game/${game}`}
                       className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-colors"
                     >
-                      {GAME_CONFIG.GAMES[game].displayName}
+                      {GAME_CONFIG.GAMES[game as keyof typeof GAME_CONFIG.GAMES]?.displayName || game}
                     </Link>
                   ))}
                 </div>

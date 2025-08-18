@@ -111,7 +111,7 @@ export function useInPlayMatches() {
               let hour24 = parseInt(hour);
               if (ampm === 'PM' && hour24 !== 12) hour24 += 12;
               if (ampm === 'AM' && hour24 === 12) hour24 = 0;
-              startTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(hour24), parseInt(minute), parseInt(second));
+              startTime = new Date(parseInt(year), parseInt(month) - 1, hour24, parseInt(minute), parseInt(second));
             }
           }
         }

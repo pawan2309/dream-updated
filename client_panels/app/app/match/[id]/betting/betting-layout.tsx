@@ -149,7 +149,7 @@ export default function BettingLayout() {
     };
 
     fetchScorecardData();
-    const interval = setInterval(fetchScorecardData, 30000);
+    const interval = setInterval(fetchScorecardData, 3000);
     return () => clearInterval(interval);
   }, [cleanMatchId]);
 
@@ -170,7 +170,7 @@ export default function BettingLayout() {
     };
 
     fetchOddsData();
-    const interval = setInterval(fetchOddsData, 60000);
+    const interval = setInterval(fetchOddsData, 3000);
     return () => clearInterval(interval);
   }, [cleanMatchId]);
 

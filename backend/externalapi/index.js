@@ -32,6 +32,7 @@ const fixturesApiRoutes = require('./routes/fixturesApi');
 
 // Central sockets registrar
 const registerSockets = require('./sockets');
+const autoMatchSync = require('./services/autoMatchSync');
 
 class ExternalApiServer {
     constructor() {
@@ -98,8 +99,14 @@ class ExternalApiServer {
                 } catch (error) {
                     logger.error('❌ Failed to initialize fixtures queue:', error.message);
                 }
-            } else {
-                logger.info('⏭️ Fixtures queue disabled by environment variable');
+            }
+
+            // Start auto-match sync service
+            try {
+                autoMatchSync.start();
+                logger.info('✅ Auto-match sync service started');
+            } catch (syncError) {
+                logger.error('❌ Failed to start auto-match sync service:', syncError);
             }
 
             // Initialize Cron scheduler (if not disabled)
@@ -208,6 +215,9 @@ class ExternalApiServer {
         // Protected client ledger routes (require authentication)
         this.app.use('/api/client-ledger', require('./routes/clientLedger'));
 
+        // Protected market management routes (require authentication)
+        this.app.use('/api/market', require('./routes/marketManagement'));
+
         // Add fixtures API routes
         this.app.use('/api/fixtures', fixturesApiRoutes);
 
@@ -266,6 +276,14 @@ class ExternalApiServer {
                     const { stopAllTasks } = require('./cron/cronScheduler');
                     stopAllTasks();
                     logger.info('✅ Cron tasks stopped');
+
+                    // Stop auto-match sync service
+                    try {
+                        autoMatchSync.stop();
+                        logger.info('✅ Auto-match sync service stopped');
+                    } catch (syncError) {
+                        logger.error('❌ Error stopping auto-match sync service:', syncError);
+                    }
 
                     await redisClient.disconnect();
                     logger.info('✅ Redis disconnected');

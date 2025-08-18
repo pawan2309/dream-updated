@@ -193,7 +193,7 @@ async function createTransaction(req: NextApiRequest, res: NextApiResponse, curr
     return res.status(201).json({
       success: true,
       message: 'Transaction created successfully',
-      data: ledger
+      data: null
     });
   } catch (error) {
     console.error('Create transaction error:', error);

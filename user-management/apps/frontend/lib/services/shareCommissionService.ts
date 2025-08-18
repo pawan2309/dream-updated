@@ -292,8 +292,9 @@ export async function assignUserWithShare(request: ShareAssignmentRequest): Prom
       } else {
         await tx.userCommissionShare.create({
           data: {
-            userId,
-            ...commissionShareData
+            User: { connect: { id: userId } },
+            ...commissionShareData,
+            updatedAt: new Date()
           }
         });
       }
@@ -417,7 +418,7 @@ export async function editUserShare(request: ShareUpdateRequest): Promise<{
     const result = await prisma.$transaction(async (tx) => {
       // Update commission share record
       if (user.UserCommissionShare) {
-        await tx.UserCommissionShare.update({
+        await tx.userCommissionShare.update({
           where: { userId },
           data: {
             share: newShare,
@@ -425,16 +426,17 @@ export async function editUserShare(request: ShareUpdateRequest): Promise<{
           }
         });
       } else {
-        await tx.UserCommissionShare.create({
+        await tx.userCommissionShare.create({
           data: {
-            userId,
+            User: { connect: { id: userId } },
             share: newShare,
             cshare: 0,
             icshare: 0,
             casinocommission: 0,
             matchcommission: 0,
             sessioncommission: 0,
-            session_commission_type: 'No Comm'
+            session_commission_type: 'No Comm',
+            updatedAt: new Date()
           }
         });
       }
@@ -666,14 +668,14 @@ export async function updateUserCommissions(
 
     const result = await prisma.$transaction(async (tx) => {
       if (user.UserCommissionShare) {
-        await tx.UserCommissionShare.update({
+        await tx.userCommissionShare.update({
           where: { userId },
           data: updateData
         });
       } else {
-        await tx.UserCommissionShare.create({
+        await tx.userCommissionShare.create({
           data: {
-            userId,
+            User: { connect: { id: userId } },
             share: 0,
             cshare: 0,
             icshare: 0,
@@ -682,7 +684,8 @@ export async function updateUserCommissions(
             sessioncommission: sessionCommission || 0,
             sessionCommission: sessionCommission,
             session_commission_type: commissionType === 'BetByBet' ? 'BetByBet' : 'No Comm',
-            commissionType
+            commissionType,
+            updatedAt: new Date()
           }
         });
       }

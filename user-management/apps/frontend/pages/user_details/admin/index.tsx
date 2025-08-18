@@ -272,22 +272,32 @@ export default function AdminMasterPage() {
       alert('Please select at least one user');
       return;
     }
+    
     if (isActive) { setActivating(true); } else { setDeactivating(true); }
     try {
+      const requestBody = { userIds: usersToUpdate, isActive: isActive, role: 'ADMIN' };
+      
       const res = await fetch('/api/users/update-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: usersToUpdate, isActive: isActive, role: 'ADMIN' }),
+        body: JSON.stringify(requestBody),
       });
+      
       const data = await res.json();
+      
       if (data.success) {
         setAdmins(prev => prev.map(user => usersToUpdate.includes(user.id) ? { ...user, isActive: isActive } : user));
         if (!userIds) { setSelectedUsers([]); }
+        
+        // Auto-refresh the page after successful status update
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000); // 1 second delay to show success state
       } else {
-        console.error('Failed to update status:', data.message);
+        console.error('❌ Frontend: Failed to update status:', data.message);
       }
     } catch (err) {
-      console.error('Failed to update status:', err);
+      console.error('❌ Frontend: Network error during status update:', err);
     } finally {
       if (isActive) { setActivating(false); } else { setDeactivating(false); }
     }
@@ -463,7 +473,8 @@ export default function AdminMasterPage() {
                           </thead>
                           <tbody>
                             {paginatedAdmins.length === 0 && (<tr><td colSpan={11} style={{ textAlign: 'center' }}>No admin users found.</td></tr>)}
-                            {paginatedAdmins.map((user, idx) => (
+                            {paginatedAdmins.map((user, idx) => {
+                              return (
                               <tr key={user.id} className={selectedUsers.includes(user.id) ? 'table-active' : ''}>
                                 <td><input type="checkbox" checked={selectedUsers.includes(user.id)} onChange={(e) => handleUserSelect(user.id, e.target.checked)} /></td>
                                 <td>
@@ -502,12 +513,13 @@ export default function AdminMasterPage() {
                                 <td>{user.contactno || 'N/A'}</td>
                                 <td>{user.password || 'N/A'}</td>
                                 <td>{(user.creditLimit || 0).toLocaleString()}</td>
-                                                                                            <td>{user.userCommissionShare?.matchcommission || 0}</td>
-                                <td>{user.userCommissionShare?.sessioncommission || 0}</td>
-                                <td>{user.userCommissionShare?.share || 0}%</td>
+                                <td>{user.UserCommissionShare?.matchcommission || 0}</td>
+                                <td>{user.UserCommissionShare?.sessioncommission || 0}</td>
+                                <td>{user.UserCommissionShare?.share || 0}%</td>
                                 <td><span className={`badge ${user.isActive ? 'badge-success' : 'badge-danger'}`}>{user.isActive ? 'Active' : 'Inactive'}</span></td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                         <div className="row mt-3">

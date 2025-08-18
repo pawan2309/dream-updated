@@ -27,8 +27,8 @@ export default function InPlayPage() {
 
   useEffect(() => {
     fetchLiveMatches();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchLiveMatches, 30000);
+    // Refresh every 3 seconds
+    const interval = setInterval(fetchLiveMatches, 3000);
     return () => clearInterval(interval);
   }, []);
 

@@ -57,8 +57,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       // Create ledger entry for source user (debit)
-      const fromLedgerData = {
-        userId: fromUserId,
+      await tx.ledger.create({ data: {
+        user: { connect: { id: fromUserId } },
+        collection: 'LIMIT_UPDATE',
         debit: parsedAmount,
         credit: 0,
         balanceAfter: (fromUser.creditLimit || 0) - parsedAmount,
@@ -66,13 +67,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         remark: `Transfer to ${toUser.username || toUser.name} - ${remark}`,
         referenceId: `TRANSFER_OUT_${Date.now()}`,
         transactionType: 'TRANSFER'
-      };
-
-      await tx.ledger.create({ data: fromLedgerData });
+      } });
 
       // Create ledger entry for destination user (credit)
-      const toLedgerData = {
-        userId: toUserId,
+      await tx.ledger.create({ data: {
+        user: { connect: { id: toUserId } },
+        collection: 'LIMIT_UPDATE',
         debit: 0,
         credit: parsedAmount,
         balanceAfter: (toUser.creditLimit || 0) + parsedAmount,
@@ -80,9 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         remark: `Transfer from ${fromUser.username || fromUser.name} - ${remark}`,
         referenceId: `TRANSFER_IN_${Date.now()}`,
         transactionType: 'TRANSFER'
-      };
-
-      await tx.ledger.create({ data: toLedgerData });
+      } });
 
       return { updatedFromUser, updatedToUser };
     });

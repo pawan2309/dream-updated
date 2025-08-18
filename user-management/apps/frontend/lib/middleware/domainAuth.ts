@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { verifyToken } from '../auth';
-import { validateDomainAccess, getPrimaryDomain, isUserManagementRole, isOperatingPanelRole, isUserPackageRole } from '../domainAccess';
+import { validateDomainAccess, getPrimaryDomain } from '../domainAccess';
+import type { Role } from '../hierarchyUtils';
 
 export interface AuthenticatedRequest extends NextApiRequest {
   user?: {
@@ -51,9 +52,9 @@ export function withDomainAuth(
         }
 
         // Validate domain access
-        const hasDomainAccess = validateDomainAccess(userData.role, currentDomain);
+        const hasDomainAccess = validateDomainAccess(userData.role as Role, currentDomain);
         if (!hasDomainAccess) {
-          const primaryDomain = getPrimaryDomain(userData.role);
+          const primaryDomain = getPrimaryDomain(userData.role as Role);
           return res.status(403).json({
             success: false,
             message: `Access denied. Your role (${userData.role}) should access ${primaryDomain}`,
@@ -62,7 +63,7 @@ export function withDomainAuth(
         }
 
         // Check role permissions if specified
-        if (allowedRoles && !allowedRoles.includes(userData.role)) {
+        if (allowedRoles && !allowedRoles.includes(userData.role as Role)) {
           return res.status(403).json({
             success: false,
             message: 'Insufficient permissions for this operation'
@@ -70,7 +71,12 @@ export function withDomainAuth(
         }
 
         // Attach user data to request
-        req.user = userData;
+        req.user = {
+          id: (userData.id || userData.userId) as string,
+          username: userData.username,
+          role: userData.role as string,
+          name: userData.name
+        };
       }
 
       // Call the handler

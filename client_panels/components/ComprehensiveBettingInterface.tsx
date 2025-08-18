@@ -3,6 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { OddsData, BettingMarket } from '../lib/oddsService';
 import { websocketService } from '../lib/websocketService';
+import { useMarketStatus } from '../lib/hooks/useMarketStatus';
+import MarketSuspensionOverlay from './MarketSuspensionOverlay';
+import SuspendedBettingButton from './SuspendedBettingButton';
 
 interface ComprehensiveBettingInterfaceProps {
   oddsData: OddsData | null;
@@ -19,13 +22,25 @@ export default function ComprehensiveBettingInterface({
 }: ComprehensiveBettingInterfaceProps) {
   const [localOddsData, setLocalOddsData] = useState<OddsData | null>(oddsData);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+    const [selectedMarket, setSelectedMarket] = useState<string>('match_odds');
+
+  // Use market status hook for the selected market
+  const { 
+    marketStatus, 
+    loading: statusLoading, 
+    canAcceptBets, 
+    isMarketSuspended, 
+    isMarketClosed,
+    getStatusColor,
+    getStatusText
+  } = useMarketStatus(matchId || '', selectedMarket);
 
   // Subscribe to real-time odds updates via WebSocket
   useEffect(() => {
     if (!matchId) return;
 
     // Subscribe to odds updates for this specific match
-    const unsubscribeOdds = websocketService.subscribe('odds_update', (update) => {
+    const unsubscribeOdds = websocketService.subscribe('odds_update', (update: any) => {
       if (update.matchId === matchId) {
         console.log('🔄 [WEBSOCKET] Odds update received for match:', matchId, update);
         
@@ -46,7 +61,7 @@ export default function ComprehensiveBettingInterface({
     });
 
     // Subscribe to match updates
-    const unsubscribeMatch = websocketService.subscribe('match_update', (update) => {
+    const unsubscribeMatch = websocketService.subscribe('match_update', (update: any) => {
       if (update.matchId === matchId) {
         console.log('🔄 [WEBSOCKET] Match update received for match:', matchId, update);
         setLastUpdate(new Date());
@@ -128,29 +143,110 @@ export default function ComprehensiveBettingInterface({
             ? 'bg-pink-50 text-pink-700 hover:bg-pink-100'
             : 'bg-pink-25 text-pink-600 hover:bg-pink-50';
 
+      const isSelectionDisabled = !canAcceptBets() || selection.status === 'suspended';
+
       return (
-        <button 
+        <SuspendedBettingButton
           key={selection.id}
-          onClick={() => onAddBet(market, selection, type)}
+          marketStatus={marketStatus}
+          disabled={isSelectionDisabled}
+          onClick={() => canAcceptBets() && onAddBet(market, selection, type)}
           className={`px-3 py-2 rounded text-sm font-medium transition-colors ${tierStyles}`}
+          showSuspensionIndicator={false}
         >
           <div className="font-bold">{selection.odds.toFixed(2)}</div>
           <div className="text-xs">
             {tierLabel}: {selection.stake.toLocaleString()}
           </div>
-        </button>
+        </SuspendedBettingButton>
       );
     });
   };
 
   return (
     <div className="space-y-6">
+      {/* Market Status Header */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <h2 className="text-lg font-semibold text-gray-900">Market Status</h2>
+            {!statusLoading && marketStatus && (
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor()}`}>
+                <span className={`w-2 h-2 rounded-full mr-2 ${getStatusColor().replace('text-', 'bg-')}`} />
+                {getStatusText()}
+              </div>
+            )}
+          </div>
+          
+          {lastUpdate && (
+            <div className="text-sm text-gray-500">
+              Last updated: {lastUpdate.toLocaleTimeString()}
+            </div>
+          )}
+        </div>
+        
+        {/* Market selection tabs */}
+        <div className="mt-4 flex space-x-2">
+          {['match_odds', 'bookmaker', 'fancy'].map((marketId) => (
+            <button
+              key={marketId}
+              onClick={() => setSelectedMarket(marketId)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedMarket === marketId
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {marketId.replace('_', ' ').toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Market Status Header */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <h2 className="text-lg font-semibold text-gray-900">Market Status</h2>
+            {!statusLoading && marketStatus && (
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor()}`}>
+                <span className={`w-2 h-2 rounded-full mr-2 ${getStatusColor().replace('text-', 'bg-')}`} />
+                {getStatusText()}
+              </div>
+            )}
+          </div>
+          
+          {lastUpdate && (
+            <div className="text-sm text-gray-500">
+              Last updated: {lastUpdate.toLocaleTimeString()}
+            </div>
+          )}
+        </div>
+        
+        {/* Market selection tabs */}
+        <div className="mt-4 flex space-x-2">
+          {['match_odds', 'bookmaker', 'fancy'].map((marketId) => (
+            <button
+              key={marketId}
+              onClick={() => setSelectedMarket(marketId)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedMarket === marketId
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {marketId.replace('_', ' ').toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Real-time Update Indicator */}
       {lastUpdate && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm text-green-700">
+            <span className="text-xs text-green-700">
               Real-time odds updated at {lastUpdate.toLocaleTimeString()}
             </span>
           </div>
@@ -158,12 +254,24 @@ export default function ComprehensiveBettingInterface({
       )}
 
       {/* MATCH_ODDS Section */}
-      <div className="game-market market-4 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="game-market market-4 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative">
+        {/* Suspension Overlay */}
+        <MarketSuspensionOverlay
+          marketStatus={marketStatus}
+          isVisible={isMarketSuspended() || isMarketClosed()}
+          className="rounded-lg"
+        />
+        
         <div className="market-title bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
           <span className="text-lg font-semibold text-gray-900">MATCH_ODDS</span>
-          <button className="btn btn-success btn-sm px-3 py-1 bg-green-500 text-white rounded text-sm" disabled>
+          <SuspendedBettingButton
+            marketStatus={marketStatus}
+            disabled={!canAcceptBets()}
+            className="btn btn-success btn-sm px-3 py-1 bg-green-500 text-white rounded text-sm"
+            showSuspensionIndicator={false}
+          >
             Cashout
-          </button>
+          </SuspendedBettingButton>
         </div>
         
         <div className="market-header bg-gray-100 px-4 py-2 border-b border-gray-200">
@@ -284,12 +392,24 @@ export default function ComprehensiveBettingInterface({
       </div>
 
       {/* Bookmaker Section */}
-      <div className="game-market market-4 width70 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="game-market market-4 width70 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative">
+        {/* Suspension Overlay */}
+        <MarketSuspensionOverlay
+          marketStatus={marketStatus}
+          isVisible={isMarketSuspended() || isMarketClosed()}
+          className="rounded-lg"
+        />
+        
         <div className="market-title bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
           <span className="text-lg font-semibold text-gray-900">Bookmaker</span>
-          <button className="btn btn-success btn-sm px-3 py-1 bg-green-500 text-white rounded text-sm" disabled>
+          <SuspendedBettingButton
+            marketStatus={marketStatus}
+            disabled={!canAcceptBets()}
+            className="btn btn-success btn-sm px-3 py-1 bg-green-500 text-white rounded text-sm"
+            showSuspensionIndicator={false}
+          >
             Cashout
-          </button>
+          </SuspendedBettingButton>
         </div>
         
         <div className="market-header bg-gray-100 px-4 py-2 border-b border-gray-200">
@@ -407,59 +527,93 @@ export default function ComprehensiveBettingInterface({
             ));
           })()}
         </div>
-        
-        <div className="market-row p-4 bg-gray-50">
-          <p className="market-remark text-sm text-gray-600 text-center">
-            EPL and LALIGA Football Matches Advance Bets Started In Our Exchange.
-          </p>
-        </div>
       </div>
 
-      {/* Tied Match Section */}
-      <div className="game-market market-2 width30 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* Fancy Section */}
+      <div className="game-market market-4 width70 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative">
+        {/* Suspension Overlay */}
+        <MarketSuspensionOverlay
+          marketStatus={marketStatus}
+          isVisible={isMarketSuspended() || isMarketClosed()}
+          className="rounded-lg"
+        />
+        
         <div className="market-title bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-          <span className="text-lg font-semibold text-gray-900">Tied Match</span>
-          <button className="btn btn-success btn-sm px-3 py-1 bg-green-500 text-white rounded text-sm" disabled>
+          <span className="text-lg font-semibold text-gray-900">Fancy</span>
+          <SuspendedBettingButton
+            marketStatus={marketStatus}
+            disabled={!canAcceptBets()}
+            className="btn btn-success btn-sm px-3 py-1 bg-green-500 text-white rounded text-sm"
+            showSuspensionIndicator={false}
+          >
             Cashout
-          </button>
+          </SuspendedBettingButton>
         </div>
         
         <div className="market-header bg-gray-100 px-4 py-2 border-b border-gray-200">
-          <div className="grid grid-cols-3 gap-2 text-xs font-medium text-gray-600">
-            <div className="market-nation-detail">
-              <span className="market-nation-name">Min: 100 Max: 1L</span>
+          <div className="grid grid-cols-7 gap-2 text-xs font-medium text-gray-600">
+            <div className="market-nation-detail col-span-2">
+              <span className="market-nation-name">Min: 100 Max: 5L</span>
             </div>
+            <div className="market-odd-box no-border d-none d-md-block"></div>
+            <div className="market-odd-box no-border d-none d-md-block"></div>
             <div className="market-odd-box back text-center">
               <b className="text-blue-600">Back</b>
             </div>
             <div className="market-odd-box lay text-center">
               <b className="text-pink-600">Lay</b>
             </div>
+            <div className="market-odd-box"></div>
+            <div className="market-odd-box no-border"></div>
           </div>
         </div>
 
         <div className="market-body">
           {(() => {
-            const groupedSelections = groupSelectionsByMarket('tied_match');
-            const market = currentOddsData?.markets?.find(m => m.id === 'tied_match');
+            const groupedSelections = groupSelectionsByMarket('fancy');
+            const market = currentOddsData?.markets?.find(m => m.id === 'fancy');
             
             if (!market || Object.keys(groupedSelections).length === 0) {
               return (
                 <div className="p-6 text-center text-gray-500">
-                  {loading ? 'Loading odds...' : 'No tied match odds available'}
+                  {loading ? 'Loading odds...' : 'No fancy odds available'}
                 </div>
               );
             }
 
             return Object.entries(groupedSelections).map(([name, selections]) => (
               <div key={name} className="market-row border-b border-gray-200 last:border-b-0">
-                <div className="grid grid-cols-3 gap-2 px-4 py-3 items-center">
-                  <div className="market-nation-detail">
+                <div className="grid grid-cols-7 gap-2 px-4 py-3 items-center">
+                  <div className="market-nation-detail col-span-2">
                     <span className="market-nation-name text-sm font-medium text-gray-900">{name}</span>
                     <div className="market-nation-book"></div>
                   </div>
                   
-                  {/* Back */}
+                  {/* Back2 */}
+                  <div className="market-odd-box back2 text-center">
+                    {selections.back.length >= 3 ? (
+                      <>
+                        <span className="market-odd block font-bold text-blue-800">{selections.back[2].odds.toFixed(2)}</span>
+                        <span className="market-volume block text-xs text-gray-600">{selections.back[2].stake.toLocaleString()}</span>
+                      </>
+                    ) : (
+                      <span className="market-odd text-gray-400">-</span>
+                    )}
+                  </div>
+                  
+                  {/* Back1 */}
+                  <div className="market-odd-box back1 text-center">
+                    {selections.back.length >= 2 ? (
+                      <>
+                        <span className="market-odd block font-bold text-blue-700">{selections.back[1].odds.toFixed(2)}</span>
+                        <span className="market-volume block text-xs text-gray-600">{selections.back[1].stake.toLocaleString()}</span>
+                      </>
+                    ) : (
+                      <span className="market-odd text-gray-400">-</span>
+                    )}
+                  </div>
+                  
+                  {/* Back (Best) */}
                   <div className="market-odd-box back text-center">
                     {selections.back.length >= 1 ? (
                       <>
@@ -471,7 +625,7 @@ export default function ComprehensiveBettingInterface({
                     )}
                   </div>
                   
-                  {/* Lay */}
+                  {/* Lay (Best) */}
                   <div className="market-odd-box lay text-center">
                     {selections.lay.length >= 1 ? (
                       <>
@@ -482,239 +636,36 @@ export default function ComprehensiveBettingInterface({
                       <span className="market-odd text-gray-400">-</span>
                     )}
                   </div>
+                  
+                  {/* Lay1 */}
+                  <div className="market-odd-box lay1 text-center">
+                    {selections.lay.length >= 2 ? (
+                      <>
+                        <span className="market-odd block font-bold text-pink-700">{selections.lay[1].odds.toFixed(2)}</span>
+                        <span className="market-volume block text-xs text-gray-600">{selections.lay[1].stake.toLocaleString()}</span>
+                      </>
+                    ) : (
+                      <span className="market-odd text-gray-400">-</span>
+                    )}
+                  </div>
+                  
+                  {/* Lay2 */}
+                  <div className="market-odd-box lay2 text-center">
+                    {selections.lay.length >= 3 ? (
+                      <>
+                        <span className="market-odd block font-bold text-pink-800">{selections.lay[2].odds.toFixed(2)}</span>
+                        <span className="market-volume block text-xs text-gray-600">{selections.lay[2].stake.toLocaleString()}</span>
+                      </>
+                    ) : (
+                      <span className="market-odd text-gray-400">-</span>
+                    )}
+                  </div>
                 </div>
               </div>
             ));
           })()}
         </div>
-        
-        <div className="market-row p-4 bg-gray-50">
-          <p className="market-remark text-sm text-gray-600 text-center">
-            The Hundred Mens And Womens And CPL Cup Winner Bets Started In Our Exchange
-          </p>
-        </div>
       </div>
-
-      {/* Normal Section */}
-      <div className="game-market market-6 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="market-title bg-gray-50 px-4 py-3 border-b border-gray-200">
-          <span className="text-lg font-semibold text-gray-900">Normal</span>
-        </div>
-        
-        <div className="row row10">
-          <div className="col-md-6">
-            <div className="market-header bg-gray-100 px-4 py-2 border-b border-gray-200">
-              <div className="grid grid-cols-3 gap-2 text-xs font-medium text-gray-600">
-                <div className="market-nation-detail"></div>
-                <div className="market-odd-box lay text-center">
-                  <b className="text-pink-600">No</b>
-                </div>
-                <div className="market-odd-box back text-center">
-                  <b className="text-blue-600">Yes</b>
-                </div>
-                <div className="fancy-min-max-box"></div>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-6 d-none d-xl-block">
-            <div className="market-header bg-gray-100 px-4 py-2 border-b border-gray-200">
-              <div className="grid grid-cols-3 gap-2 text-xs font-medium text-gray-600">
-                <div className="market-nation-detail"></div>
-                <div className="market-odd-box lay text-center">
-                  <b className="text-pink-600">No</b>
-                </div>
-                <div className="market-odd-box back text-center">
-                  <b className="text-blue-600">Yes</b>
-                </div>
-                <div className="fancy-min-max-box"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="market-body">
-          <div className="row row10">
-            {(() => {
-              const groupedSelections = groupSelectionsByMarket('normal');
-              const market = currentOddsData?.markets?.find(m => m.id === 'normal');
-              
-              if (!market || Object.keys(groupedSelections).length === 0) {
-                return (
-                  <div className="col-12 p-6 text-center text-gray-500">
-                    {loading ? 'Loading odds...' : 'No normal markets available'}
-                  </div>
-                );
-              }
-
-              return Object.entries(groupedSelections).slice(0, 20).map(([name, selections], index) => (
-                <div key={name} className="col-md-6">
-                  <div className="fancy-market border-b border-gray-200 last:border-b-0">
-                    <div className="market-row">
-                      <div className="grid grid-cols-4 gap-2 px-4 py-3 items-center">
-                        <div className="market-nation-detail col-span-2">
-                          <span className="market-nation-name text-sm font-medium text-gray-900 max-w-xs truncate block">
-                            {name}
-                          </span>
-                        </div>
-                        
-                        {/* Lay (No) */}
-                        <div className="market-odd-box lay text-center">
-                          {selections.lay.length >= 1 ? (
-                            <>
-                              <span className="market-odd block font-bold text-pink-600">{selections.lay[0].odds.toFixed(0)}</span>
-                              <span className="market-volume block text-xs text-gray-600">{selections.lay[0].stake.toLocaleString()}</span>
-                            </>
-                          ) : (
-                            <span className="market-odd text-gray-400">-</span>
-                          )}
-                        </div>
-                        
-                        {/* Back (Yes) */}
-                        <div className="market-odd-box back text-center">
-                          {selections.back.length >= 1 ? (
-                            <>
-                              <span className="market-odd block font-bold text-blue-600">{selections.back[0].odds.toFixed(0)}</span>
-                              <span className="market-volume block text-xs text-gray-600">{selections.back[0].stake.toLocaleString()}</span>
-                            </>
-                          ) : (
-                            <span className="market-odd text-gray-400">-</span>
-                          )}
-                        </div>
-                        
-                        <div className="fancy-min-max-box">
-                          <div className="fancy-min-max text-xs text-gray-500">
-                            <span className="w-100 d-block">Min: 100</span>
-                            <span className="w-100 d-block">Max: 4L</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ));
-            })()}
-          </div>
-        </div>
-      </div>
-
-      {/* Fancy Markets Section */}
-      {currentOddsData?.markets?.find(m => m.id === 'fancy1') && (() => {
-        const groupedSelections = groupSelectionsByMarket('fancy1');
-        const market = currentOddsData.markets.find(m => m.id === 'fancy1');
-        
-        if (!market || Object.keys(groupedSelections).length === 0) return null;
-
-        return (
-          <div className="game-market market-6 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="market-title bg-gray-50 px-4 py-3 border-b border-gray-200">
-              <span className="text-lg font-semibold text-gray-900">fancy1</span>
-            </div>
-            
-            <div className="row row10">
-              <div className="col-md-6">
-                <div className="market-header bg-gray-100 px-4 py-2 border-b border-gray-200">
-                  <div className="grid grid-cols-3 gap-2 text-xs font-medium text-gray-600">
-                    <div className="market-nation-detail"></div>
-                    <div className="market-odd-box back text-center">
-                      <b className="text-blue-600">Back</b>
-                    </div>
-                    <div className="market-odd-box lay text-center">
-                      <b className="text-pink-600">Lay</b>
-                    </div>
-                    <div className="fancy-min-max-box"></div>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-6 d-none d-xl-block">
-                <div className="market-header bg-gray-100 px-4 py-2 border-b border-gray-200">
-                  <div className="grid grid-cols-3 gap-2 text-xs font-medium text-gray-600">
-                    <div className="market-nation-detail"></div>
-                    <div className="market-odd-box back text-center">
-                      <b className="text-blue-600">Back</b>
-                    </div>
-                    <div className="market-odd-box lay text-center">
-                      <b className="text-pink-600">Lay</b>
-                    </div>
-                    <div className="fancy-min-max-box"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="market-body">
-              <div className="row row10">
-                {Object.entries(groupedSelections).slice(0, 15).map(([name, selections]) => (
-                  <div key={name} className="col-md-6">
-                    <div className="fancy-market border-b border-gray-200 last:border-b-0">
-                      <div className="market-row">
-                        <div className="grid grid-cols-4 gap-2 px-4 py-3 items-center">
-                          <div className="market-nation-detail col-span-2">
-                            <span className="market-nation-name text-sm font-medium text-gray-900 max-w-xs truncate block">
-                              {name}
-                            </span>
-                            <div className="market-nation-book"></div>
-                          </div>
-                          
-                          {/* Back */}
-                          <div className="market-odd-box back text-center">
-                            {selections.back.length >= 1 ? (
-                              <>
-                                <span className="market-odd block font-bold text-blue-600">{selections.back[0].odds.toFixed(2)}</span>
-                                <span className="market-volume block text-xs text-gray-600">{selections.back[0].stake.toLocaleString()}</span>
-                              </>
-                            ) : (
-                              <span className="market-odd text-gray-400">-</span>
-                            )}
-                          </div>
-                          
-                          {/* Lay */}
-                          <div className="market-odd-box lay text-center">
-                            {selections.lay.length >= 1 ? (
-                              <>
-                                <span className="market-odd block font-bold text-pink-600">{selections.lay[0].odds.toFixed(2)}</span>
-                                <span className="market-volume block text-xs text-gray-600">{selections.lay[0].stake.toLocaleString()}</span>
-                              </>
-                            ) : (
-                              <span className="market-odd text-gray-400">-</span>
-                            )}
-                          </div>
-                          
-                          <div className="fancy-min-max-box">
-                            <div className="fancy-min-max text-xs text-gray-500">
-                              <span className="w-100 d-block">Min: 100</span>
-                              <span className="w-100 d-block">Max: 1L</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Sample Data Display when no odds available */}
-      {!currentOddsData && !loading && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Sample Markets (Demo)</h3>
-                <p className="text-sm text-gray-600">This is sample data for demonstration</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="text-center text-gray-500">
-              <p>No odds data available. Please check the API connection or try refreshing the page.</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

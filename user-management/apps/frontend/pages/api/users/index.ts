@@ -50,7 +50,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       }
       if (isActive !== undefined) {
         // Convert string to boolean for isActive filter
-        const isActiveBool = isActive === 'true' || isActive === true;
+        const isActiveBool = String(isActive) === 'true';
         whereClause.isActive = isActiveBool;
         console.log('Filtering by isActive:', isActiveBool, 'Query param:', isActive);
       }
@@ -241,7 +241,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       // Validate share hierarchy - child shares cannot exceed parent shares
       if (parentUser) {
         // Get parent's commission share data
-        const parentCommissionShare = await prisma.UserCommissionShare.findUnique({
+        const parentCommissionShare = await prisma.userCommissionShare.findUnique({
           where: { userId: parentUser.id }
         });
 
@@ -379,7 +379,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
          }
 
          if (Object.keys(parentUpdateData).length > 0) {
-           await prisma.UserCommissionShare.update({
+           await prisma.userCommissionShare.update({
              where: { userId: parentUser.id },
              data: parentUpdateData
            });
@@ -396,9 +396,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
        }
 
                console.log('Creating commission share with data:', commissionShareData);
-               await prisma.UserCommissionShare.create({
-          data: commissionShareData
-        });
+               await prisma.userCommissionShare.create({
+        data: {
+          User: { connect: { id: user.id } },
+          share: commissionShareData.share,
+          available_share_percent: commissionShareData.available_share_percent,
+          cshare: commissionShareData.cshare,
+          icshare: commissionShareData.icshare,
+          casinocommission: commissionShareData.casinocommission,
+          matchcommission: commissionShareData.matchcommission,
+          sessioncommission: commissionShareData.sessioncommission,
+          sessionCommission: commissionShareData.sessionCommission,
+          session_commission_type: commissionShareData.session_commission_type,
+          commissionType: commissionShareData.commissionType,
+          updatedAt: new Date()
+        }
+      });
         console.log('Commission share created successfully for user:', user.id);
 
       // Create ledger entries for credit limit allocation

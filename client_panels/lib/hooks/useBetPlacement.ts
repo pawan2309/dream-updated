@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useAutoMatchSync } from './useAutoMatchSync';
 
 interface Bet {
   id: string;
@@ -36,6 +37,8 @@ export function useBetPlacement(): BetPlacementState & BetPlacementActions {
     userChips: 0, // Changed from userBalance to userChips
     userExposure: 0
   });
+
+  const { syncMatchFromOdds } = useAutoMatchSync();
 
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));
@@ -103,8 +106,22 @@ export function useBetPlacement(): BetPlacementState & BetPlacementActions {
 
   const placeBet = useCallback(async (
     betData: Omit<Bet, 'id' | 'status' | 'createdAt'>, 
-    stake: number
+    stake: number,
+    currentOddsData?: any // Optional: pass current odds data for snapshot
   ): Promise<boolean> => {
+    
+    // 🔄 AUTO-SYNC: Ensure match exists in database before placing bet
+    if (currentOddsData) {
+      try {
+        console.log('🔄 [BET] Auto-syncing match before bet placement...');
+        await syncMatchFromOdds(currentOddsData);
+        console.log('✅ [BET] Match auto-sync completed');
+      } catch (syncError) {
+        console.warn('⚠️ [BET] Match auto-sync failed, continuing with bet placement:', syncError);
+        // Don't fail bet placement if sync fails
+      }
+    }
+
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
@@ -129,6 +146,45 @@ export function useBetPlacement(): BetPlacementState & BetPlacementActions {
         return false;
       }
 
+      // Get current odds snapshot for the specific market and selection
+      let oddsSnapshot = null;
+      let marketType = null;
+      let oddsTier = null;
+      let availableStake = null;
+
+      if (currentOddsData) {
+        const market = currentOddsData?.markets?.find((m: any) => m.id === betData.marketId);
+        const selection = market?.selections?.find((s: any) => s.id === betData.selectionId);
+        
+        if (market && selection) {
+          // Create comprehensive odds snapshot
+          oddsSnapshot = {
+            market: {
+              id: market.id,
+              name: market.name,
+              type: market.type,
+              minStake: market.minStake,
+              maxStake: market.maxStake,
+              status: market.status
+            },
+            selection: {
+              id: selection.id,
+              name: selection.name,
+              odds: selection.odds,
+              stake: selection.stake,
+              type: selection.type,
+              tier: selection.tier
+            },
+            timestamp: new Date().toISOString(),
+            matchId: window.location.pathname.split('/').pop() // Extract match ID from URL
+          };
+          
+          marketType = market.type;
+          oddsTier = selection.tier;
+          availableStake = selection.stake;
+        }
+      }
+
       // Create bet object
       const newBet: Bet = {
         ...betData,
@@ -145,7 +201,7 @@ export function useBetPlacement(): BetPlacementState & BetPlacementActions {
         bets: [...prev.bets, newBet]
       }));
 
-      // Call backend API to place bet
+      // Call backend API to place bet with enhanced odds data
       const response = await fetch('http://localhost:4001/api/bets/place', {
         method: 'POST',
         headers: {
@@ -160,49 +216,53 @@ export function useBetPlacement(): BetPlacementState & BetPlacementActions {
           stake,
           type: betData.type,
           marketName: betData.marketName,
-          matchId: window.location.pathname.split('/').pop() // Extract match ID from URL
+          matchId: window.location.pathname.split('/').pop(), // Extract match ID from URL
+          // Enhanced odds data
+          marketType,
+          oddsSnapshot,
+          oddsTier,
+          availableStake
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to place bet: ${response.status}`);
+        throw new Error(errorData.error || 'Failed to place bet');
       }
 
       const result = await response.json();
       
       if (result.success) {
-        // Update bet status to matched and refresh user chips
+        // Update UI with successful bet placement
         setState(prev => ({
           ...prev,
           isLoading: false,
-          userChips: result.data.newChips,
           userExposure: result.data.newExposure,
           bets: prev.bets.map(bet => 
             bet.id === newBet.id ? { ...bet, status: 'matched' } : bet
           )
         }));
         
-        console.log('✅ Bet placed successfully:', result.data);
         return true;
       } else {
-        throw new Error(result.error || 'Failed to place bet');
+        throw new Error(result.error || 'Bet placement failed');
       }
+
     } catch (error) {
-      console.error('❌ Error placing bet:', error);
+      console.error('Error placing bet:', error);
       
       // Revert optimistic update on error
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to place bet',
-        userChips: prev.userChips + stake,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userChips: prev.userChips + stake, // Restore chips
         bets: prev.bets.filter(bet => bet.id !== `bet_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
       }));
       
       return false;
     }
-  }, [state.userChips]);
+  }, [state.userChips, syncMatchFromOdds]);
 
   const updateBetStatus = useCallback((betId: string, status: Bet['status']) => {
     setState(prev => ({

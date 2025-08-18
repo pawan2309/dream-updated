@@ -23,8 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         'User-Agent': 'Betting-Frontend/1.0',
         'Accept': 'application/json',
         'Cache-Control': 'no-cache'
-      },
-      timeout: 10000
+      }
     });
 
     if (!backendResponse.ok) {

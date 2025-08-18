@@ -50,31 +50,35 @@ const AdminLimitUpdatePage = () => {
   const handleLimitUpdate = async (id: string, type: 'Add' | 'Minus') => {
     const value = inputValues[id];
     if (!value || isNaN(Number(value))) {
-      alert('Please enter a valid amount');
-      return;
+      return; // Silent fail - no alert
     }
     const amount = Number(value);
     if (amount <= 0) {
-      alert('Amount must be greater than 0');
-      return;
+      return; // Silent fail - no alert
     }
     try {
       const res = await fetch('/api/users/update-limit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: id, amount, type }),
+        body: JSON.stringify({ 
+          userId: id, 
+          amount, 
+          type: type === 'Add' ? 'add' : 'deduct', // API expects 'add' or 'deduct'
+          role: 'ADMIN' // Add the missing role field
+        }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        alert(`Limit ${type.toLowerCase()}ed successfully!`);
+        // Silent success - no alert
         fetchAdmins();
         setInputValues((prev) => ({ ...prev, [id]: '' }));
       } else {
-        alert(data.message || data.error || 'Failed to update limit');
+        // Silent fail - no alert
+        console.error('Failed to update limit:', data.message || data.error);
       }
     } catch (err) {
       console.error('Error updating limit:', err);
-      alert('Network error occurred');
+      // Silent fail - no alert
     }
   };
 
@@ -148,7 +152,7 @@ const AdminLimitUpdatePage = () => {
                         <th>Admin Name</th>
                         <th>Limit</th>
                         <th>Enter Limit</th>
-                        <th>My Limit : {myLimit}</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>

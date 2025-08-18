@@ -477,13 +477,13 @@ export default function Dashboard() {
       refreshInterval = setInterval(() => {
         console.log('🔄 Backup refresh triggered (WebSocket active)');
         loadRealMatches();
-      }, 60000); // 1 minute backup refresh
+      }, 3000); // 3 seconds backup refresh
     } else {
       // For non-live matches or when WebSocket is down, use regular polling
       refreshInterval = setInterval(() => {
         console.log('🔄 Regular refresh triggered');
         loadRealMatches();
-      }, 30000); // 30 seconds for non-live matches
+      }, 3000); // 3 seconds for non-live matches
     }
     
     return () => clearInterval(refreshInterval);

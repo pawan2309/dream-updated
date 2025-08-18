@@ -67,10 +67,9 @@ export class LedgerService {
     let direction = amount > 0 ? 1 : -1; // 1: profit, -1: loss
     let parentId = currentUser.parentId;
     while (parentId && remaining > 0.0001) {
-      const parent = await prisma.user.findUnique({ where: { id: parentId } });
+      const parent = await prisma.user.findUnique({ where: { id: parentId }, include: { UserCommissionShare: true } });
       if (!parent) break;
-      // Parent's share
-      const share = parent.share ?? 0;
+      const share = parent.UserCommissionShare?.share ?? 0;
       const shareAmount = (remaining * share) / 100;
       if (shareAmount > 0) {
         // Credit or debit parent accordingly

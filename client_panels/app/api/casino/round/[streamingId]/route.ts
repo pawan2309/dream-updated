@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+interface JWTPayload {
+  userId: string;
+  username: string;
+  role: string;
+  iat: number;
+  exp: number;
+}
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { streamingId: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     // Get authorization header
     const authHeader = request.headers.get('authorization');
@@ -21,7 +24,7 @@ export async function GET(
 
     try {
       // Verify JWT token
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as JWTPayload;
       
       if (!decoded || !decoded.userId) {
         return NextResponse.json({
@@ -30,21 +33,21 @@ export async function GET(
         }, { status: 401 });
       }
 
-      // For now, return mock round data
-      // In a real implementation, you would fetch from your casino system
-      const mockRound = {
-        roundId: `R${Date.now()}`,
-        status: 'active',
-        timeLeft: 20
-      };
+      // Get streaming ID from URL
+      const url = new URL(request.url);
+      const streamingId = url.pathname.split('/').pop();
 
+      // Here you would fetch the casino round data
+      // For now, return a mock response
       return NextResponse.json({
         success: true,
-        roundId: mockRound.roundId,
-        message: 'Round info fetched successfully'
+        data: {
+          streamingId,
+          round: 'mock_round_data'
+        }
       });
 
-    } catch (jwtError) {
+    } catch (error) {
       return NextResponse.json({
         success: false,
         message: 'Invalid token'
@@ -52,7 +55,7 @@ export async function GET(
     }
 
   } catch (error) {
-    console.error('Casino round fetch error:', error);
+    console.error('Casino round error:', error);
     return NextResponse.json({
       success: false,
       error: 'Internal server error'

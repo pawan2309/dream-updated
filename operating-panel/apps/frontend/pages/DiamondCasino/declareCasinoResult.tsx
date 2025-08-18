@@ -95,7 +95,6 @@ export default function DeclareCasinoResult() {
                 columns={tableColumns}
                 data={tableData}
                 selectable={false}
-                emptyMessage="No casino results available. Apply filters to load data."
               />
             </div>
           </div>

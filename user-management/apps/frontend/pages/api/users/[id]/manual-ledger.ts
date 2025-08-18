@@ -69,17 +69,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Create ledger entry
-    const ledgerData = {
-      userId: id as string,
-      amount: parsedAmount,
-      type: finalPaymentType,
-      description: `Manual ${type} - ${remark}`,
-      reference: `MANUAL_${type.toUpperCase()}_${Date.now()}`,
-      createdBy: decoded.userId || 'system'
-    };
-
     const entry = await prisma.ledger.create({
-      data: ledgerData
+      data: {
+        userId: id as string,
+        collection: 'MANUAL',
+        debit: finalPaymentType === 'DEBIT' ? parsedAmount : 0,
+        credit: finalPaymentType === 'CREDIT' ? parsedAmount : 0,
+        balanceAfter: newLimit,
+        type: 'ADJUSTMENT',
+        remark: `Manual ${type} - ${remark}`,
+        referenceId: `MANUAL_${type.toUpperCase()}_${Date.now()}`,
+        transactionType: 'MANUAL_ADJUST'
+      }
     });
 
     return res.status(200).json({

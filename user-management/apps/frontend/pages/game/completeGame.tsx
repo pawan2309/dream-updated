@@ -27,7 +27,7 @@ export default function CompleteGamePage() {
   useEffect(() => {
     fetchCompletedMatches();
     // Refresh every 60 seconds (less frequent for completed matches)
-    const interval = setInterval(fetchCompletedMatches, 60000);
+    const interval = setInterval(fetchCompletedMatches, 3000);
     return () => clearInterval(interval);
   }, []);
 

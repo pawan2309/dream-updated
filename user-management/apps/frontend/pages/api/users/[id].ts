@@ -110,19 +110,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           mobileshare: parseFloat(mobileshare) || 0
         };
 
-        const existingShare = await prisma.UserCommissionShare.findFirst({
+        // Check if commission share exists and update/create accordingly
+        const existingShare = await prisma.userCommissionShare.findUnique({
           where: { userId: id }
         });
 
         if (existingShare) {
-          await prisma.UserCommissionShare.update({
-            where: { id: existingShare.id },
-            data: commissionShareData
+          await prisma.userCommissionShare.update({
+            where: { userId: id },
+            data: {
+              ...commissionShareData,
+              updatedAt: new Date()
+            }
           });
         } else {
-          await prisma.UserCommissionShare.create({
+          await prisma.userCommissionShare.create({
             data: {
               userId: id,
+              updatedAt: new Date(),
               ...commissionShareData
             }
           });
@@ -134,19 +139,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             where: { parentId: updatedUser.parentId }
           });
 
-          const totalChildShare = children.reduce((sum, child) => {
-            const childShare = child.UserCommissionShare?.[0];
-            return sum + (childShare?.cshare || 0);
-          }, 0);
+          let totalChildShare = 0;
+          
+          // Calculate total child share sequentially since we can't use async in reduce
+          for (const child of children) {
+            const childCommissionShare = await prisma.userCommissionShare.findUnique({
+              where: { userId: child.id }
+            });
+            totalChildShare += (childCommissionShare?.cshare || 0);
+          }
 
-          const parentUpdateData = {
-            cshare: Math.max(0, 100 - totalChildShare)
-          };
-
-          await prisma.user.update({
-            where: { id: updatedUser.parentId },
-            data: parentUpdateData
+          // Note: cshare is not a direct property of User model
+          // We need to update the UserCommissionShare record instead
+          const parentCommissionShare = await prisma.userCommissionShare.findUnique({
+            where: { userId: updatedUser.parentId }
           });
+
+          if (parentCommissionShare) {
+            await prisma.userCommissionShare.update({
+              where: { id: parentCommissionShare.id },
+              data: {
+                cshare: Math.max(0, 100 - totalChildShare)
+              }
+            });
+          }
         }
       }
 

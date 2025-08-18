@@ -133,9 +133,9 @@ export default function Header() {
       fetchExposure()
       
       // Set up intervals for real-time updates
-      const balanceInterval = setInterval(fetchLiveBalance, 30000) // Every 30 seconds
+      const balanceInterval = setInterval(fetchLiveBalance, 3000) // Every 3 seconds
       const limitInterval = setInterval(fetchUserLimit, 300000)    // Every 5 minutes
-      const exposureInterval = setInterval(fetchExposure, 60000)   // Every minute
+      const exposureInterval = setInterval(fetchExposure, 3000)   // Every 3 seconds
       
       return () => {
         clearInterval(balanceInterval)

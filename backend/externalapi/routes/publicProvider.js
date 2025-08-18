@@ -111,10 +111,10 @@ async function refreshCricketCache() {
   }
 }
 
-// Kick-off background refresh every 30 s (non-blocking)
+// Kick-off background refresh every 3 s (non-blocking)
 setInterval(() => {
   refreshCricketCache();
-}, 30_000);
+}, 3_000);
 
 // Initial warm-up (do not block module load)
 refreshCricketCache();

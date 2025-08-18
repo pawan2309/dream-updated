@@ -24,8 +24,8 @@ interface BetSlipState {
 }
 
 interface BetSlipAction {
-  type: string
-  payload?: any
+  type: 'ADD_BET' | 'REMOVE_BET' | 'UPDATE_STAKE' | 'UPDATE_CURRENT_STAKE' | 'CLEAR_BETS' | 'TOGGLE_BET_SLIP' | 'SET_ERROR'
+  payload?: BetSelection | string | { betId: string; stake: number } | null
 }
 
 interface BetSlipContextType {
@@ -54,10 +54,13 @@ const initialState: BetSlipState = {
 function betSlipReducer(state: BetSlipState, action: BetSlipAction): BetSlipState {
   switch (action.type) {
     case 'ADD_BET':
+      if (!action.payload || typeof action.payload === 'string' || 'betId' in action.payload) {
+        return state;
+      }
       const newBet: BetSelection = {
         ...action.payload,
         stake: parseFloat(state.currentStake) || GAME_CONFIG.BETTING.MIN_STAKE,
-        potentialProfit: calculateProfit(action.payload.odds, parseFloat(state.currentStake) || GAME_CONFIG.BETTING.MIN_STAKE),
+        potentialProfit: (action.payload.odds - 1) * (parseFloat(state.currentStake) || GAME_CONFIG.BETTING.MIN_STAKE),
       }
       
       // Check if bet already exists
@@ -91,6 +94,9 @@ function betSlipReducer(state: BetSlipState, action: BetSlipAction): BetSlipStat
       }
     
     case 'REMOVE_BET':
+      if (typeof action.payload !== 'string') {
+        return state;
+      }
       const filteredBets = state.selectedBets.filter(bet => bet.id !== action.payload)
       return {
         ...state,
@@ -101,24 +107,32 @@ function betSlipReducer(state: BetSlipState, action: BetSlipAction): BetSlipStat
       }
     
     case 'UPDATE_STAKE':
-      const betsWithUpdatedStake = state.selectedBets.map(bet => 
-        bet.id === action.payload.betId 
-          ? { 
-              ...bet, 
-              stake: action.payload.stake,
-              potentialProfit: calculateProfit(bet.odds, action.payload.stake)
-            }
+      if (!action.payload || typeof action.payload === 'string' || !('betId' in action.payload)) {
+        return state;
+      }
+      const { betId, stake } = action.payload;
+      const updatedStakeBets = state.selectedBets.map(bet => 
+        bet.id === betId 
+          ? { ...bet, stake, potentialProfit: (bet.odds - 1) * stake }
           : bet
       )
       return {
         ...state,
-        selectedBets: betsWithUpdatedStake,
-        totalStake: betsWithUpdatedStake.reduce((sum, bet) => sum + bet.stake, 0),
-        totalPotentialProfit: betsWithUpdatedStake.reduce((sum, bet) => sum + bet.potentialProfit, 0),
+        selectedBets: updatedStakeBets,
+        totalStake: updatedStakeBets.reduce((sum, bet) => sum + bet.stake, 0),
+        totalPotentialProfit: updatedStakeBets.reduce((sum, bet) => sum + bet.potentialProfit, 0),
+        error: null,
       }
     
     case 'UPDATE_CURRENT_STAKE':
-      return { ...state, currentStake: action.payload }
+      if (typeof action.payload !== 'string') {
+        return state;
+      }
+      return {
+        ...state,
+        currentStake: action.payload,
+        error: null,
+      }
     
     case 'CLEAR_BETS':
       return {
@@ -130,13 +144,16 @@ function betSlipReducer(state: BetSlipState, action: BetSlipAction): BetSlipStat
       }
     
     case 'TOGGLE_BET_SLIP':
-      return { ...state, isOpen: !state.isOpen }
+      return {
+        ...state,
+        isOpen: !state.isOpen,
+      }
     
     case 'SET_ERROR':
-      return { ...state, error: action.payload }
-    
-    case 'CLEAR_ERROR':
-      return { ...state, error: null }
+      return {
+        ...state,
+        error: typeof action.payload === 'string' ? action.payload : null,
+      }
     
     default:
       return state
@@ -157,8 +174,13 @@ export function BetSlipProvider({ children }: { children: React.ReactNode }) {
 
   // Add bet to slip
   const addBet = useCallback((bet: Omit<BetSelection, 'stake' | 'potentialProfit'>) => {
-    dispatch({ type: 'ADD_BET', payload: bet })
-  }, [])
+    const betWithDefaults: BetSelection = {
+      ...bet,
+      stake: parseFloat(state.currentStake) || GAME_CONFIG.BETTING.MIN_STAKE,
+      potentialProfit: (bet.odds - 1) * (parseFloat(state.currentStake) || GAME_CONFIG.BETTING.MIN_STAKE),
+    };
+    dispatch({ type: 'ADD_BET', payload: betWithDefaults });
+  }, [state.currentStake]);
 
   // Remove bet from slip
   const removeBet = useCallback((betId: string) => {
@@ -230,7 +252,7 @@ export function BetSlipProvider({ children }: { children: React.ReactNode }) {
 
   // Calculate profit for given odds and stake
   const calculateProfit = useCallback((odds: number, stake: number): number => {
-    return calculateProfit(odds, stake)
+    return (odds - 1) * stake
   }, [])
 
   const contextValue: BetSlipContextType = useMemo(() => ({

@@ -48,7 +48,7 @@ export default function App({ Component, pageProps }: AppProps) {
 };
 
 // Separate client-side component that uses hooks
-const ClientApp = ({ Component, pageProps }: AppProps) => {
+const ClientApp = ({ Component, pageProps }: { Component: AppProps['Component']; pageProps: AppProps['pageProps'] }) => {
   useEffect(() => {
     console.log('🔵 App useEffect running - Client side');
     

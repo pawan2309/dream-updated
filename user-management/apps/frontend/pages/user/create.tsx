@@ -19,6 +19,7 @@ const UserCreatePage = () => {
     reference: '',
     password: '',
     contactno: '',
+    balance: '',
     share: 0.0,
     cshare: 0.0,
     icshare: 0.0,
@@ -136,11 +137,11 @@ const UserCreatePage = () => {
         // Set parent's values for display
         setFormData(prev => ({
           ...prev,
-          myShare: parentUserData.user.userCommissionShare?.share || 0,
-          myCasinoShare: parentUserData.user.userCommissionShare?.cshare || 0,
-          myCasinoCommission: parentUserData.user.userCommissionShare?.casinocommission || 0,
-          myMatchCommission: parentUserData.user.userCommissionShare?.matchcommission || 0,
-          mySessionCommission: parentUserData.user.userCommissionShare?.sessioncommission || 0,
+          myShare: parentUserData.user.UserCommissionShare?.share || 0,
+          myCasinoShare: parentUserData.user.UserCommissionShare?.cshare || 0,
+          myCasinoCommission: parentUserData.user.UserCommissionShare?.casinocommission || 0,
+          myMatchCommission: parentUserData.user.UserCommissionShare?.matchcommission || 0,
+          mySessionCommission: parentUserData.user.UserCommissionShare?.sessioncommission || 0,
         }));
       } else {
         console.error('Failed to fetch parent data');
@@ -542,6 +543,18 @@ const UserCreatePage = () => {
                         </div>
                       )}
                     </div>
+                    <div className="form-group">
+                      <label>Parent Limit (Available)</label>
+                      <input 
+                        type="number" 
+                        className="form-control shadow-none" 
+                        readOnly 
+                        value={parentData?.creditLimit || 0}
+                        style={{ backgroundColor: '#f8f9fa', color: '#495057' }}
+                      />
+                      <small className="form-text text-muted">This shows how much limit the parent has available</small>
+                    </div>
+                    <div className="form-group"><label>Balance</label><input type="number" name="balance" className="form-control shadow-none" value={formData.balance} onChange={handleInputChange} /></div>
                   </div>
                 </div>
               </div>
@@ -577,7 +590,12 @@ const UserCreatePage = () => {
                       </div>
                       <div className="form-group col-md-6">
                         <label>My Share (Parent)</label>
-                        <input type="number" name="myShare" className="form-control shadow-none" placeholder="Parent Share" value={formData.myShare || ''} onChange={handleInputChange} />
+                        <input 
+                          type="number" 
+                          className="form-control shadow-none" 
+                          readOnly 
+                          value={formData.myShare} 
+                        />
                       </div>
                     </div>
                     <div className="form-group">
@@ -592,21 +610,33 @@ const UserCreatePage = () => {
                         <div className="form-group row mb-0">
                           <div className="form-group col-md-6">
                             <label>Match Commission</label>
-                            <input type="number" name="matchcommission" className="form-control" placeholder="Match Commission" value={formData.matchcommission || ''} onChange={handleInputChange} />
+                            <input type="number" min="0" max={formData.myMatchCommission || 100} name="matchcommission" className="form-control" placeholder="Match Commission" value={formData.matchcommission || ''} onChange={handleInputChange} />
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Match Commission (Parent)</label>
-                            <input type="number" name="myMatchCommission" className="form-control" placeholder="Parent Match Commission" value={formData.myMatchCommission || ''} onChange={handleInputChange} />
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              readOnly 
+                              placeholder="Parent Match Commission" 
+                              value={formData.myMatchCommission || ''} 
+                            />
                           </div>
                         </div>
                         <div className="form-group row mb-0">
                           <div className="form-group col-md-6">
                             <label>Session Commission</label>
-                            <input type="number" name="sessioncommission" className="form-control" placeholder="Session Commission" value={formData.sessioncommission || ''} onChange={handleInputChange} />
+                            <input type="number" min="0" max={formData.mySessionCommission || 100} name="sessioncommission" className="form-control" placeholder="Session Commission" value={formData.sessioncommission || ''} onChange={handleInputChange} />
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Session Commission (Parent)</label>
-                            <input type="number" name="mySessionCommission" className="form-control" placeholder="Parent Session Commission" value={formData.mySessionCommission || ''} onChange={handleInputChange} />
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              readOnly 
+                              placeholder="Parent Session Commission" 
+                              value={formData.mySessionCommission || ''} 
+                            />
                           </div>
                         </div>
                       </>
@@ -631,22 +661,34 @@ const UserCreatePage = () => {
                       <>
                         <div className="form-group row mb-0">
                           <div className="form-group col-md-6">
-                            <label htmlFor="cshare">{getRoleDisplayName(userRole)} Casino Share</label>
-                            <input type="number" min="0" max="98.5" name="casinoShare" placeholder="Share" className="form-control shadow-none" step="0.01" required value={formData.casinoShare} onChange={handleInputChange} />
+                            <label>User Casino Share</label>
+                            <input type="number" min="0" max={formData.myCasinoShare || 100} name="casinoShare" placeholder="Share" className="form-control shadow-none" step="0.01" required value={formData.casinoShare || ''} onChange={handleInputChange} />
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Casino Share (Parent)</label>
-                            <input type="number" name="myCasinoShare" className="form-control shadow-none" placeholder="Parent Casino Share" value={formData.myCasinoShare || ''} onChange={handleInputChange} />
+                            <input 
+                              type="number" 
+                              className="form-control shadow-none" 
+                              readOnly 
+                              placeholder="Parent Casino Share" 
+                              value={formData.myCasinoShare || ''} 
+                            />
                           </div>
                         </div>
                         <div className="form-group row mb-0">
                           <div className="form-group col-md-6">
                             <label>Casino Commission</label>
-                            <input type="number" name="casinoCommission" className="form-control shadow-none" required value={formData.casinoCommission} onChange={handleInputChange} />
+                            <input type="number" min="0" max={formData.myCasinoCommission || 100} name="casinoCommission" className="form-control shadow-none" required value={formData.casinoCommission || ''} onChange={handleInputChange} />
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Casino Commission (Parent)</label>
-                            <input type="number" name="myCasinoCommission" className="form-control shadow-none" placeholder="Parent Casino Commission" value={formData.myCasinoCommission || ''} onChange={handleInputChange} />
+                            <input 
+                              type="number" 
+                              className="form-control shadow-none" 
+                              readOnly 
+                              placeholder="Parent Casino Commission" 
+                              value={formData.myCasinoCommission || ''} 
+                            />
                           </div>
                         </div>
                       </>

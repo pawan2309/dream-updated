@@ -240,8 +240,8 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
     };
 
     fetchOddsData();
-    // Refresh odds every 30 seconds
-    const interval = setInterval(fetchOddsData, 30000);
+    // Refresh odds every 3 seconds
+    const interval = setInterval(fetchOddsData, 3000);
     return () => clearInterval(interval);
   }, [cleanMatchId]);
 
@@ -262,7 +262,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
 
     fetchScorecard();
     // Refresh scorecard every 10 seconds
-    const interval = setInterval(fetchScorecard, 10000);
+    const interval = setInterval(fetchScorecard, 3000);
     return () => clearInterval(interval);
   }, [cleanMatchId]);
 

@@ -51,21 +51,24 @@ const EditSubAgent = () => {
             mySessionCommission: '',
           });
 
-          // Fetch parent user data
+          // Fetch parent user data using the same logic as create pages
           if (userData.user.parentId) {
             const parentRes = await fetch(`/api/users/${userData.user.parentId}`);
             const parentData = await parentRes.json();
             
             if (parentData.success) {
               setParentUser(parentData.user);
-              // Set parent's values for display
-              setForm(prev => ({
-                ...prev,
-                myShare: parentData.user.userCommissionShare?.share || 0,
-                myCasinoShare: parentData.user.userCommissionShare?.cshare || 0,
-                myCasinoCommission: parentData.user.userCommissionShare?.casinocommission || 0,
-                myMatchCommission: parentData.user.userCommissionShare?.matchcommission || 0,
-                mySessionCommission: parentData.user.userCommissionShare?.sessioncommission || 0,
+              // Set parent's values for display - use proper state update
+              const commissionShare = parentData.user.UserCommissionShare;
+              
+              // Update form state with new values
+              setForm(prevForm => ({
+                ...prevForm,
+                myShare: commissionShare?.share || 0,
+                myCasinoShare: commissionShare?.cshare || 0,
+                myCasinoCommission: commissionShare?.casinocommission || 0,
+                myMatchCommission: commissionShare?.matchcommission || 0,
+                mySessionCommission: commissionShare?.sessioncommission || 0,
               }));
             }
           }
@@ -291,7 +294,13 @@ const EditSubAgent = () => {
                       </div>
                       <div className="form-group col-md-6">
                         <label>My Share (Parent)</label>
-                        <input type="number" name="myShare" className="form-control shadow-none" placeholder="Parent Share" value={form.myShare || ''} onChange={handleChange} />
+                        <input
+                          type="number"
+                          className="form-control shadow-none"
+                          readOnly
+                          value={form.myShare || 0}
+                          style={{ backgroundColor: '#f8f9fa', color: '#495057' }}
+                        />
                       </div>
                     </div>
                     <div className="form-group">
@@ -310,7 +319,13 @@ const EditSubAgent = () => {
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Match Commission (Parent)</label>
-                            <input type="number" name="myMatchCommission" className="form-control" placeholder="Parent Match Commission" value={form.myMatchCommission || ''} onChange={handleChange} />
+                            <input
+                              type="number"
+                              className="form-control"
+                              readOnly
+                              value={form.myMatchCommission || 0}
+                              style={{ backgroundColor: '#f8f9fa', color: '#495057' }}
+                            />
                           </div>
                         </div>
                         <div className="form-group row mb-0">
@@ -320,7 +335,13 @@ const EditSubAgent = () => {
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Session Commission (Parent)</label>
-                            <input type="number" name="mySessionCommission" className="form-control" placeholder="Parent Session Commission" value={form.mySessionCommission || ''} onChange={handleChange} />
+                            <input
+                              type="number"
+                              className="form-control"
+                              readOnly
+                              value={form.mySessionCommission || 0}
+                              style={{ backgroundColor: '#f8f9fa', color: '#495057' }}
+                            />
                           </div>
                         </div>
                       </>
@@ -353,7 +374,13 @@ const EditSubAgent = () => {
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Casino Share (Parent)</label>
-                            <input type="number" name="myCasinoShare" className="form-control shadow-none" placeholder="Parent Casino Share" value={form.myCasinoShare || ''} onChange={handleChange} />
+                            <input
+                              type="number"
+                              className="form-control shadow-none"
+                              readOnly
+                              value={form.myCasinoShare || 0}
+                              style={{ backgroundColor: '#f8f9fa', color: '#495057' }}
+                            />
                           </div>
                         </div>
                         <div className="form-group row mb-0">
@@ -363,7 +390,13 @@ const EditSubAgent = () => {
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Casino Commission (Parent)</label>
-                            <input type="number" name="myCasinoCommission" className="form-control shadow-none" placeholder="Parent Casino Commission" value={form.myCasinoCommission || ''} onChange={handleChange} />
+                            <input
+                              type="number"
+                              className="form-control shadow-none"
+                              readOnly
+                              value={form.myCasinoCommission || 0}
+                              style={{ backgroundColor: '#f8f9fa', color: '#495057' }}
+                            />
                           </div>
                         </div>
                       </>

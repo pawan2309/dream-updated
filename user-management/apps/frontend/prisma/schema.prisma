@@ -26,10 +26,10 @@ model User {
   exposure            Float                @default(0)
   casinoStatus        Boolean?
   bets                Bet[]
+  settlements         BetSettlement[]
   ledger              Ledger[]
   loginSessions       LoginSession[]
   profitDistributions ProfitDistribution[]
-  settlements         BetSettlement[]
   parent              User?                @relation("UserHierarchy", fields: [parentId], references: [id])
   children            User[]               @relation("UserHierarchy")
   UserCommissionShare UserCommissionShare?
@@ -55,35 +55,32 @@ model Ledger {
 }
 
 model Match {
-  id          String      @id @default(uuid())
+  id          String          @id @default(uuid())
   title       String
-  externalId  String      @unique
-  status      MatchStatus @default(UPCOMING)
-  createdAt   DateTime    @default(now())
+  externalId  String          @unique
+  status      MatchStatus     @default(UPCOMING)
+  createdAt   DateTime        @default(now())
   apiSource   String?
   beventId    String?
   bmarketId   String?
-  isActive    Boolean     @default(true)
-  isCricket   Boolean     @default(true)
-  isDeleted   Boolean     @default(false)
-  isLive      Boolean     @default(false)
-  lastUpdated DateTime    @default(now())
+  isActive    Boolean         @default(true)
+  isCricket   Boolean         @default(true)
+  isDeleted   Boolean         @default(false)
+  isLive      Boolean         @default(false)
+  lastUpdated DateTime        @default(now())
   matchName   String?
   matchType   String?
   rawData     Json?
   startTime   DateTime?
   teams       Json?
   tournament  String?
-  
-  // Match Result Fields
-  winner              String?              // "ENGLAND W WIN", "INDIA W WIN", etc.
-  result              String?              // Match result details
-  settledAt           DateTime?            // When match was settled
-  resultData          Json?                // Detailed result information
-  
+  result      String?
+  resultData  Json?
+  settledAt   DateTime?
+  winner      String?
   bets        Bet[]
-  odds        MatchOdds[]
   settlements BetSettlement[]
+  odds        MatchOdds[]
 
   @@index([bmarketId])
   @@index([beventId])
@@ -116,28 +113,32 @@ model Bet {
   id                  String               @id @default(uuid())
   userId              String
   matchId             String
-  marketId            String?              // Market identifier (e.g., "match_odds")
-  selectionId         String?              // Selection identifier (e.g., "match_odds_1_back_2")
-  selectionName       String?              // Selection name (e.g., "Shivamogga Lions")
-  marketName          String?              // Market name (e.g., "MATCH_ODDS")
   odds                Float
   stake               Float
-  type                String?              // Bet type (e.g., "back", "lay")
   potentialWin        Float
   status              BetStatus            @default(PENDING)
-  
-  // Bet Result Fields
-  wonAmount           Float?               // Amount won (null if lost or pending)
-  lostAmount          Float?               // Amount lost (null if won or pending)
-  result              String?              // "ENGLAND W WIN", "INDIA W WIN", etc.
-  settledAt           DateTime?            // When bet was settled
-  updatedAt           DateTime?            @updatedAt
-  
   createdAt           DateTime             @default(now())
+  marketId            String?
+  selectionId         String?
+  selectionName       String?
+  marketName          String?
+  type                String?
+  
+  // Enhanced odds data storage
+  marketType          String?              // 'match_winner', 'cricketcasino', 'tied_match', 'custom'
+  oddsSnapshot        Json?                // Complete odds data when bet was placed
+  oddsTier            Int?                 // Which tier of odds (1=best, 2=second best, etc.)
+  availableStake      Float?               // Available stake at that odds level
+  
+  lostAmount          Float?
+  result              String?
+  settledAt           DateTime?
+  updatedAt           DateTime?            @updatedAt
+  wonAmount           Float?
   match               Match                @relation(fields: [matchId], references: [id])
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  profitDistributions ProfitDistribution[]
   settlements         BetSettlement[]
+  profitDistributions ProfitDistribution[]
 
   @@index([userId, createdAt])
   @@index([marketId])
@@ -146,6 +147,8 @@ model Bet {
   @@index([status])
   @@index([settledAt])
   @@index([result])
+  @@index([marketType])
+  @@index([oddsTier])
 }
 
 model ProfitDistribution {
@@ -160,36 +163,25 @@ model ProfitDistribution {
 }
 
 model BetSettlement {
-  id              String     @id @default(uuid())
-  matchId         String
-  betId           String?
-  userId          String?
-  
-  // Settlement details
-  winner          String                    // Who won the match
-  result          String                    // Match result
-  settledAt       DateTime                  @default(now())
-  
-  // Financial impact
-  totalStakes     Float                     // Total stakes on this match
-  totalWinnings   Float                     // Total winnings paid out
-  totalLosses     Float                     // Total losses collected
-  
-  // Bet results
-  winningBets     Int                       // Number of winning bets
-  losingBets      Int                       // Number of losing bets
-  
-  // Processing status
-  isProcessed     Boolean                   @default(false)
-  processedAt     DateTime?
-  
-  // Relations
-  match           Match                     @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  bet             Bet?                      @relation(fields: [betId], references: [id], onDelete: SetNull)
-  user            User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  id            String    @id @default(uuid())
+  matchId       String
+  betId         String?
+  userId        String?
+  winner        String
+  result        String
+  settledAt     DateTime  @default(now())
+  totalStakes   Float
+  totalWinnings Float
+  totalLosses   Float
+  winningBets   Int
+  losingBets    Int
+  isProcessed   Boolean   @default(false)
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  bet           Bet?      @relation(fields: [betId], references: [id])
+  match         Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user          User?     @relation(fields: [userId], references: [id])
 
   @@index([matchId])
   @@index([betId])
@@ -218,7 +210,7 @@ model LoginSession {
 }
 
 model UserCommissionShare {
-  id                      String   @id
+  id                      String   @id @default(uuid())
   userId                  String   @unique
   share                   Float    @default(0)
   cshare                  Float    @default(0)
@@ -248,6 +240,8 @@ model CasinoTable {
   streamId    Int?            @map("stream_id")
   lastUpdated DateTime        @default(now()) @updatedAt @map("last_updated")
 
+  @@index([betStatus], map: "idx_casino_tables_bet_status")
+  @@index([streamId], map: "idx_casino_tables_stream_id")
   @@map("casino_tables")
 }
 
@@ -273,13 +267,12 @@ enum LedgerType {
   PNL_CREDIT
   PNL_DEBIT
   SETTLEMENT
-  
-  // Bet-specific transaction types
   BET_PLACEMENT
   BET_CANCELLATION
   BET_WIN
   BET_LOSS
   BET_SETTLEMENT
+  COMMISSION
 }
 
 enum MatchStatus {

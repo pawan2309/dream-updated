@@ -65,15 +65,20 @@ const MasterCreatePage = () => {
         
         if (parentUserData.success) {
           setParentData(parentUserData.user);
-          // Set parent's values for display
-          setForm(prev => ({
-            ...prev,
-            myShare: parentUserData.user.userCommissionShare?.share || 0,
-            myCasinoShare: parentUserData.user.userCommissionShare?.cshare || 0,
-            myCasinoCommission: parentUserData.user.userCommissionShare?.casinocommission || 0,
-            myMatchCommission: parentUserData.user.userCommissionShare?.matchcommission || 0,
-            mySessionCommission: parentUserData.user.userCommissionShare?.sessioncommission || 0,
+          
+          // Set parent's values for display - use proper state update
+          const commissionShare = parentUserData.user.UserCommissionShare;
+          
+          // Update form state with new values
+          setForm(prevForm => ({
+            ...prevForm,
+            myShare: commissionShare?.share || 0,
+            myCasinoShare: commissionShare?.cshare || 0,
+            myCasinoCommission: commissionShare?.casinocommission || 0,
+            myMatchCommission: commissionShare?.matchcommission || 0,
+            mySessionCommission: commissionShare?.sessioncommission || 0,
           }));
+          
         } else {
           setError('Failed to fetch parent data');
         }
@@ -261,7 +266,29 @@ const MasterCreatePage = () => {
                     <div className="form-group"><label>Name</label><input type="text" name="name" className="form-control shadow-none" required value={form.name} onChange={handleChange} /></div>
                     <div className="form-group"><label>Reference</label><input type="text" name="reference" className="form-control shadow-none" required value={form.reference} onChange={handleChange} /></div>
                     <div className="form-group"><label>Password</label><div className="input-group "><input type="text" name="password" className="form-control shadow-none" required value={form.password} onChange={handleChange} /><span className="input-group-append"><button type="button" className="generate-password btn btn-info btn-flat" onClick={generatePassword}>Generate Password</button></span></div></div>
-                    <div className="form-group"><label>Contact No</label><input type="number" name="contactno" className="form-control shadow-none" required value={form.contactno} onChange={handleChange} /></div>
+                    <div className="form-group">
+                      <label>Contact No</label>
+                      <input 
+                        type="text" 
+                        name="contactno" 
+                        className="form-control shadow-none" 
+                        required 
+                        value={form.contactno} 
+                        onChange={handleChange}
+                        placeholder="Enter contact number (numbers only)"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Parent Limit (Available)</label>
+                      <input 
+                        type="number" 
+                        className="form-control shadow-none" 
+                        readOnly 
+                        value={parentData?.creditLimit || 0}
+                        style={{ backgroundColor: '#f8f9fa', color: '#495057' }}
+                      />
+                      <small className="form-text text-muted">This shows how much limit the parent has available</small>
+                    </div>
                     <div className="form-group"><label>Balance</label><input type="number" name="balance" className="form-control shadow-none" value={form.balance} onChange={handleChange} /></div>
                   </div>
                 </div>
@@ -277,7 +304,12 @@ const MasterCreatePage = () => {
                       </div>
                       <div className="form-group col-md-6">
                         <label>My Share (Parent)</label>
-                        <input type="number" name="myShare" className="form-control shadow-none" placeholder="Parent Share" value={form.myShare || ''} onChange={handleChange} />
+                        <input 
+                          type="number" 
+                          className="form-control shadow-none" 
+                          readOnly 
+                          value={form.myShare} 
+                        />
                       </div>
                     </div>
                     <div className="form-group">
@@ -296,7 +328,13 @@ const MasterCreatePage = () => {
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Match Commission (Parent)</label>
-                            <input type="number" name="myMatchCommission" className="form-control" placeholder="Parent Match Commission" value={form.myMatchCommission || ''} onChange={handleChange} />
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              readOnly 
+                              placeholder="Parent Match Commission" 
+                              value={form.myMatchCommission || ''} 
+                            />
                           </div>
                         </div>
                         <div className="form-group row mb-0">
@@ -306,7 +344,13 @@ const MasterCreatePage = () => {
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Session Commission (Parent)</label>
-                            <input type="number" name="mySessionCommission" className="form-control" placeholder="Parent Session Commission" value={form.mySessionCommission || ''} onChange={handleChange} />
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              readOnly 
+                              placeholder="Parent Session Commission" 
+                              value={form.mySessionCommission || ''} 
+                            />
                           </div>
                         </div>
                       </>
@@ -331,12 +375,18 @@ const MasterCreatePage = () => {
                       <>
                         <div className="form-group row mb-0">
                           <div className="form-group col-md-6">
-                            <label>Master Casino Share</label>
+                            <label>Master Agent Casino Share</label>
                             <input type="number" min="0" max={form.myCasinoShare || 100} name="casinoShare" placeholder="Share" className="form-control shadow-none" step="0.01" required value={form.casinoShare} onChange={handleChange} />
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Casino Share (Parent)</label>
-                            <input type="number" name="myCasinoShare" className="form-control shadow-none" placeholder="Parent Casino Share" value={form.myCasinoShare || ''} onChange={handleChange} />
+                            <input 
+                              type="number" 
+                              className="form-control shadow-none" 
+                              readOnly 
+                              placeholder="Parent Casino Share" 
+                              value={form.myCasinoShare || ''} 
+                            />
                           </div>
                         </div>
                         <div className="form-group row mb-0">
@@ -346,7 +396,13 @@ const MasterCreatePage = () => {
                           </div>
                           <div className="form-group col-md-6">
                             <label>My Casino Commission (Parent)</label>
-                            <input type="number" name="myCasinoCommission" className="form-control shadow-none" placeholder="Parent Casino Commission" value={form.myCasinoCommission || ''} onChange={handleChange} />
+                            <input 
+                              type="number" 
+                              className="form-control shadow-none" 
+                              readOnly 
+                              placeholder="Parent Casino Commission" 
+                              value={form.myCasinoCommission || ''} 
+                            />
                           </div>
                         </div>
                       </>

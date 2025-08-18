@@ -94,7 +94,7 @@ export async function createUserWithRoleValidation(request: CreateUserRequest): 
     // Get parent user to validate role hierarchy
     const parentUser = await prisma.user.findUnique({
       where: { id: parentId },
-      include: { userCommissionShare: true }
+      include: { UserCommissionShare: true }
     });
 
     if (!parentUser) {
@@ -164,21 +164,20 @@ export async function createUserWithRoleValidation(request: CreateUserRequest): 
       });
 
       // Create commission share record
-      const commissionShareData = {
-        userId: user.id,
-        share,
-        cshare: casinoStatus ? (casinoShare || share) : 0,
-        icshare: 0,
-        casinocommission: casinoCommission,
-        matchcommission: matchCommission,
-        sessioncommission: sessionCommission,
-        sessionCommission: sessionCommission,
-        session_commission_type: commissionType === 'BetByBet' ? 'BetByBet' : 'No Comm',
-        commissionType
-      };
-
       await tx.userCommissionShare.create({
-        data: commissionShareData
+        data: {
+          User: { connect: { id: user.id } },
+          share,
+          cshare: casinoStatus ? (casinoShare || share) : 0,
+          icshare: 0,
+          casinocommission: casinoCommission,
+          matchcommission: matchCommission,
+          sessioncommission: sessionCommission,
+          sessionCommission: sessionCommission,
+          session_commission_type: commissionType === 'BetByBet' ? 'BetByBet' : 'No Comm',
+          commissionType,
+          updatedAt: new Date()
+        }
       });
 
       // Update parent's commission values if provided
@@ -240,10 +239,10 @@ export async function createUserWithRoleValidation(request: CreateUserRequest): 
       return await tx.user.findUnique({
         where: { id: user.id },
         include: {
-          userCommissionShare: true,
+          UserCommissionShare: true,
           parent: {
             include: {
-              userCommissionShare: true
+              UserCommissionShare: true
             }
           }
         }
@@ -276,9 +275,9 @@ export async function updateUserWithRoleValidation(request: UpdateUserRequest): 
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        userCommissionShare: true,
+        UserCommissionShare: true,
         parent: {
-          include: { userCommissionShare: true }
+          include: { UserCommissionShare: true }
         }
       }
     });
@@ -370,10 +369,10 @@ export async function updateUserWithRoleValidation(request: UpdateUserRequest): 
       return await tx.user.findUnique({
         where: { id: userId },
         include: {
-          userCommissionShare: true,
+          UserCommissionShare: true,
           parent: {
             include: {
-              userCommissionShare: true
+              UserCommissionShare: true
             }
           }
         }

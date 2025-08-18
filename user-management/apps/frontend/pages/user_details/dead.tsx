@@ -45,7 +45,7 @@ interface User {
     username: string;
     name: string;
   };
-  userCommissionShare?: {
+  UserCommissionShare?: {
     share: number;
     matchcommission: number;
     sessioncommission: number;
@@ -114,7 +114,6 @@ export default function DeadUsersPage() {
       }
 
       const result = await res.json();
-      alert(result.message);
       fetchDeadUsers(); // Refresh the list
       setSelectedUsers([]); // Clear selection
     } catch (err) {
@@ -488,9 +487,9 @@ export default function DeadUsersPage() {
                                     </span>
                                   </td>
                                                                      <td style={{ verticalAlign: 'middle' }}>{user.creditLimit?.toLocaleString() || '0'}</td>
-                                   <td style={{ verticalAlign: 'middle' }}>{user.userCommissionShare?.matchcommission || '0'}</td>
-                                   <td style={{ verticalAlign: 'middle' }}>{user.userCommissionShare?.sessioncommission || '0'}</td>
-                                   <td style={{ verticalAlign: 'middle' }}>{user.userCommissionShare?.share || '0'}%</td>
+                                   <td style={{ verticalAlign: 'middle' }}>{user.UserCommissionShare?.matchcommission || '0'}</td>
+                                   <td style={{ verticalAlign: 'middle' }}>{user.UserCommissionShare?.sessioncommission || '0'}</td>
+                                   <td style={{ verticalAlign: 'middle' }}>{user.UserCommissionShare?.share || '0'}%</td>
                                   <td style={{ verticalAlign: 'middle' }}>
                                     <span className="badge badge-danger">Inactive</span>
                                   </td>

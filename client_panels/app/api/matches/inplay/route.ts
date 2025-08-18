@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sharedApiService } from '../../../../lib/sharedApi';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Fetch live matches from the operating panel
     const result = await sharedApiService.getLiveMatches();

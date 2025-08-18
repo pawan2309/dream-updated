@@ -3,7 +3,7 @@ const redis = require('../utils/redisClient');
 const { cricketOddsQueue } = require('../queues/cricketOddsQueue');
 const { extractEventIds } = require('../../shared/utils/extractEventIds');
 
-const DEFAULT_INTERVAL_SECONDS = parseInt(process.env.CRON_INTERVAL_ODDS_REFRESH || '30', 10);
+const DEFAULT_INTERVAL_SECONDS = parseInt(process.env.CRON_INTERVAL_ODDS_REFRESH || '3', 10);
 
 async function enqueueRefreshForFixtures() {
   try {

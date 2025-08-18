@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Odds Grid - Event 34626187</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .market-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .market-header {
+            background: #f8fafc;
+            padding: 15px 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .market-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .market-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 15px;
+        }
+        
+        .status-open {
+            background-color: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .status-suspended {
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        
+        .odds-grid {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        .odds-grid th {
+            background: #f1f5f9;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            font-size: 12px;
+        }
+        
+        .odds-grid td {
+            padding: 10px 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+        
+        .team-name {
+            text-align: left;
+            font-weight: 600;
+            color: #1e293b;
+            background: #f8fafc;
+            padding-left: 15px;
+        }
+        
+        .back-odds {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            color: #1e40af;
+            font-weight: 600;
+        }
+        
+        .lay-odds {
+            background: linear-gradient(135deg, #fce7f3, #fbcfe8);
+            color: #be185d;
+            font-weight: 600;
+        }
+        
+        .odds-value {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        
+        .stake-value {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 2px;
+            display: block;
+        }
+        
+        .tier-label {
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+            display: block;
+        }
+        
+        .suspended-cell {
+            background: #fef2f2;
+            color: #dc2626;
+            font-style: italic;
+        }
+        
+        .market-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .stake-limits {
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        .selection-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-active {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-suspended-selection {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e3a8a;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Odds Grid - Event 34626187</h1>
+        <p>Antigua And Barbuda Falcons vs St. Lucia Kings | Live Match</p>
+    </div>
+
+    <div class="summary-stats">
+        <div class="stat-card">
+            <div class="stat-number">7</div>
+            <div class="stat-label">Total Markets</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">2</div>
+            <div class="stat-label">Active Markets</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">5</div>
+            <div class="stat-label">Suspended Markets</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">3</div>
+            <div class="stat-label">Odds Tiers</div>
+        </div>
+    </div>
+
+    <!-- MATCH_ODDS Market -->
+    <div class="market-section">
+        <div class="market-header">
+            <div class="market-info">
+                <h2 class="market-title">🏆 MATCH_ODDS</h2>
+                <span class="market-status status-open">OPEN</span>
+            </div>
+            <div class="stake-limits">Min: ₹0 | Max: ₹2,000</div>
+        </div>
+        
+        <table class="odds-grid">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Team</th>
+                    <th style="width: 37.5%;">
+                        <span class="tier-label">Back Odds</span>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span>3rd</span>
+                            <span>2nd</span>
+                            <span>1st</span>
+                        </div>
+                    </th>
+                    <th style="width: 37.5%;">
+                        <span class="tier-label">Lay Odds</span>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span>1st</span>
+                            <span>2nd</span>
+                            <span>3rd</span>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="team-name">
+                        <div>Antigua And Barbuda Falcons</div>
+                        <span class="selection-status status-active">Active</span>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">2.08</div>
+                        <div class="stake-value">₹5.90</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">2.10</div>
+                        <div class="stake-value">₹3.93</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">2.12</div>
+                        <div class="stake-value">₹341.09</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">2.18</div>
+                        <div class="stake-value">₹271.54</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">2.30</div>
+                        <div class="stake-value">₹23.24</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">2.34</div>
+                        <div class="stake-value">₹275.73</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="team-name">
+                        <div>St. Lucia Kings</div>
+                        <span class="selection-status status-active">Active</span>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">1.75</div>
+                        <div class="stake-value">₹368.69</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">1.77</div>
+                        <div class="stake-value">₹30.20</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">1.86</div>
+                        <div class="stake-value">₹318.26</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">1.88</div>
+                        <div class="stake-value">₹380.77</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">1.89</div>
+                        <div class="stake-value">₹1.78</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">1.90</div>
+                        <div class="stake-value">₹4.17</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Bookmaker Market -->
+    <div class="market-section">
+        <div class="market-header">
+            <div class="market-info">
+                <h2 class="market-title">📚 Bookmaker</h2>
+                <span class="market-status status-suspended">SUSPENDED</span>
+            </div>
+            <div class="stake-limits">Min: ₹100 | Max: ₹500,000</div>
+        </div>
+        
+        <table class="odds-grid">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Team</th>
+                    <th style="width: 37.5%;">
+                        <span class="tier-label">Back Odds</span>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span>3rd</span>
+                            <span>2nd</span>
+                            <span>1st</span>
+                        </div>
+                    </th>
+                    <th style="width: 37.5%;">
+                        <span class="tier-label">Lay Odds</span>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span>1st</span>
+                            <span>2nd</span>
+                            <span>3rd</span>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="team-name">
+                        <div>Antigua And Barbuda Falcons</div>
+                        <span class="selection-status status-suspended-selection">Suspended</span>
+                    </td>
+                    <td class="suspended-cell" colspan="3">SUSPENDED</td>
+                    <td class="suspended-cell" colspan="3">SUSPENDED</td>
+                </tr>
+                <tr>
+                    <td class="team-name">
+                        <div>St. Lucia Kings</div>
+                        <span class="selection-status status-suspended-selection">Suspended</span>
+                    </td>
+                    <td class="suspended-cell" colspan="3">SUSPENDED</td>
+                    <td class="suspended-cell" colspan="3">SUSPENDED</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Tied Match Market -->
+    <div class="market-section">
+        <div class="market-header">
+            <div class="market-info">
+                <h2 class="market-title">⚖️ Tied Match</h2>
+                <span class="market-status status-suspended">SUSPENDED</span>
+            </div>
+            <div class="stake-limits">Min: ₹100 | Max: ₹100,000</div>
+        </div>
+        
+        <table class="odds-grid">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Selection</th>
+                    <th style="width: 37.5%;">
+                        <span class="tier-label">Back Odds</span>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span>1st</span>
+                        </div>
+                    </th>
+                    <th style="width: 37.5%;">
+                        <span class="tier-label">Lay Odds</span>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span>1st</span>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="team-name">
+                        <div>Yes</div>
+                        <span class="selection-status status-suspended-selection">Suspended</span>
+                    </td>
+                    <td class="suspended-cell" colspan="1">SUSPENDED</td>
+                    <td class="suspended-cell" colspan="1">SUSPENDED</td>
+                </tr>
+                <tr>
+                    <td class="team-name">
+                        <div>No</div>
+                        <span class="selection-status status-suspended-selection">Suspended</span>
+                    </td>
+                    <td class="suspended-cell" colspan="1">SUSPENDED</td>
+                    <td class="suspended-cell" colspan="1">SUSPENDED</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Completed Match Market -->
+    <div class="market-section">
+        <div class="market-header">
+            <div class="market-info">
+                <h2 class="market-title">✅ Completed Match</h2>
+                <span class="market-status status-open">OPEN</span>
+            </div>
+            <div class="stake-limits">Min: ₹0 | Max: ₹0</div>
+        </div>
+        
+        <table class="odds-grid">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Selection</th>
+                    <th style="width: 37.5%;">
+                        <span class="tier-label">Back Odds</span>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span>3rd</span>
+                            <span>2nd</span>
+                            <span>1st</span>
+                        </div>
+                    </th>
+                    <th style="width: 37.5%;">
+                        <span class="tier-label">Lay Odds</span>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span>1st</span>
+                            <span>2nd</span>
+                            <span>3rd</span>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="team-name">
+                        <div>Yes</div>
+                        <span class="selection-status status-active">Active</span>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">1.51</div>
+                        <div class="stake-value">₹450</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">1.72</div>
+                        <div class="stake-value">₹3.30</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">2.14</div>
+                        <div class="stake-value">₹1.73</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">2.50</div>
+                        <div class="stake-value">₹50</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">2.58</div>
+                        <div class="stake-value">₹11.55</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">2.72</div>
+                        <div class="stake-value">₹2.40</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="team-name">
+                        <div>No</div>
+                        <span class="selection-status status-active">Active</span>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">1.58</div>
+                        <div class="stake-value">₹4.14</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">1.63</div>
+                        <div class="stake-value">₹18.28</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">1.66</div>
+                        <div class="stake-value">₹75.30</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">1.87</div>
+                        <div class="stake-value">₹1.98</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">2.40</div>
+                        <div class="stake-value">₹2.37</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">2.98</div>
+                        <div class="stake-value">₹228.02</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Tied Match Market (Active) -->
+    <div class="market-section">
+        <div class="market-header">
+            <div class="market-info">
+                <h2 class="market-title">🤝 Tied Match</h2>
+                <span class="market-status status-open">OPEN</span>
+            </div>
+            <div class="stake-limits">Min: ₹0 | Max: ₹0</div>
+        </div>
+        
+        <table class="odds-grid">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Selection</th>
+                    <th style="width: 37.5%;">
+                        <span class="tier-label">Back Odds</span>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span>3rd</span>
+                            <span>2nd</span>
+                            <span>1st</span>
+                        </div>
+                    </th>
+                    <th style="width: 37.5%;">
+                        <span class="tier-label">Lay Odds</span>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span>1st</span>
+                            <span>2nd</span>
+                            <span>3rd</span>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="team-name">
+                        <div>Yes</div>
+                        <span class="selection-status status-active">Active</span>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">34</div>
+                        <div class="stake-value">₹45.22</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">50</div>
+                        <div class="stake-value">₹76.07</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">60</div>
+                        <div class="stake-value">₹62.21</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">70</div>
+                        <div class="stake-value">₹1.92</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">75</div>
+                        <div class="stake-value">₹2.40</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">110</div>
+                        <div class="stake-value">₹27.98</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="team-name">
+                        <div>No</div>
+                        <span class="selection-status status-active">Active</span>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">-</div>
+                        <div class="stake-value">₹0</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">-</div>
+                        <div class="stake-value">₹0</div>
+                    </td>
+                    <td class="back-odds">
+                        <div class="odds-value">1.01</div>
+                        <div class="stake-value">₹3,359.40</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">1.02</div>
+                        <div class="stake-value">₹7,388.25</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">1.03</div>
+                        <div class="stake-value">₹1,492.61</div>
+                    </td>
+                    <td class="lay-odds">
+                        <div class="odds-value">1.04</div>
+                        <div class="stake-value">₹961.08</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Add some interactivity
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add hover effects to odds cells
+            const oddsCells = document.querySelectorAll('.back-odds, .lay-odds');
+            oddsCells.forEach(cell => {
+                cell.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.05)';
+                    this.style.transition = 'transform 0.2s ease';
+                });
+                
+                cell.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                });
+            });
+            
+            // Add click to copy odds value
+            oddsCells.forEach(cell => {
+                cell.addEventListener('click', function() {
+                    const oddsValue = this.querySelector('.odds-value').textContent;
+                    navigator.clipboard.writeText(oddsValue).then(() => {
+                        // Show temporary feedback
+                        const originalText = this.querySelector('.odds-value').textContent;
+                        this.querySelector('.odds-value').textContent = 'Copied!';
+                        this.style.background = '#10b981';
+                        this.style.color = 'white';
+                        
+                        setTimeout(() => {
+                            this.querySelector('.odds-value').textContent = originalText;
+                            this.style.background = '';
+                            this.style.color = '';
+                        }, 1000);
+                    });
+                });
+                
+                cell.style.cursor = 'pointer';
+            });
+        });
+    </script>
+</body>
+</html>

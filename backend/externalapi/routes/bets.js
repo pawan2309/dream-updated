@@ -2,11 +2,29 @@ const express = require('express');
 const router = express.Router();
 const jwtAuth = require('../../shared/middleware/jwtAuth');
 const database = require('../utils/database');
+const BetValidationService = require('../services/betValidationService');
+const ExposureService = require('../services/exposureService');
+const CommissionService = require('../services/commissionService');
 
 // POST /api/bets/place - Place a new bet
 router.post('/place', jwtAuth(), async (req, res) => {
   try {
-    const { marketId, selectionId, selectionName, odds, stake, type, marketName, matchId } = req.body;
+    const { 
+      marketId, 
+      selectionId, 
+      selectionName, 
+      odds, 
+      stake, 
+      type, 
+      marketName, 
+      matchId,
+      // Enhanced odds data fields
+      marketType,
+      oddsSnapshot,
+      oddsTier,
+      availableStake
+    } = req.body;
+    
     const userId = req.user?.userId;
 
     console.log('🔍 [BETS] Bet placement request:', {
@@ -18,7 +36,10 @@ router.post('/place', jwtAuth(), async (req, res) => {
       stake,
       type,
       marketName,
-      matchId
+      matchId,
+      marketType,
+      oddsTier,
+      availableStake
     });
 
     // Debug JWT token info
@@ -28,173 +49,36 @@ router.post('/place', jwtAuth(), async (req, res) => {
       userData: req.user
     });
 
-    // Validate required fields
-    if (!marketId || !selectionId || !odds || !stake || !type || !matchId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields'
-      });
-    }
-
-    // Validate stake amount
-    if (stake <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid stake amount',
-        details: 'Stake must be greater than 0'
-      });
-    }
-
-    // Validate stake is a valid number
-    if (isNaN(stake) || !isFinite(stake)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid stake amount',
-        details: 'Stake must be a valid number'
-      });
-    }
-
-    // Get user data to check chips (creditLimit)
-    const user = await database.findOne('User', { id: userId });
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: 'User not found'
-      });
-    }
-
-    // Check if user has enough credit limit for betting
-    const availableCredit = user.creditLimit || 0;
-    const currentBalance = user.balance || 0;
-
-    // Validate user has a valid credit limit
-    if (!availableCredit || availableCredit <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No credit limit available',
-        details: 'Your account has no credit limit set. Please contact support.',
-        userCreditLimit: availableCredit
-      });
-    }
-    
-    console.log('🔍 [BETS] User data:', {
-      userId: user.id,
-      balance: user.balance,
-      creditLimit: user.creditLimit,
-      exposure: user.exposure
-    });
-    
-    console.log('🔍 [BETS] Credit-based validation:', {
-      stake: stake,
-      availableCredit: availableCredit,
-      currentBalance: currentBalance,
-      canPlaceBet: stake <= availableCredit,
-      validation: {
-        creditCheck: stake <= availableCredit,
-        balanceNote: 'Balance not used for validation in credit system'
-      }
-    });
-    
-    // Enhanced credit limit validation
-    if (stake > availableCredit) {
-      return res.status(400).json({
-        success: false,
-        error: 'Insufficient credit limit',
-        details: `Your stake (${stake}) exceeds your available credit limit (${availableCredit})`,
-        available: availableCredit,
-        required: stake,
-        shortfall: stake - availableCredit,
-        suggestion: `Reduce your stake to ${availableCredit} or less to place this bet`
-      });
-    }
-
-    // Additional safety check: ensure stake doesn't exceed 100% of credit limit
-    if (stake > availableCredit * 0.95) { // Allow up to 95% of credit limit
-      console.log('⚠️ [BETS] High stake warning:', {
-        stake: stake,
-        availableCredit: availableCredit,
-        percentage: ((stake / availableCredit) * 100).toFixed(2) + '%'
-      });
-    }
-
-    // Extreme safety check: prevent unreasonably high stakes
-    const maxAllowedStake = availableCredit * 10; // Maximum 10x credit limit
-    if (stake > maxAllowedStake) {
-      return res.status(400).json({
-        success: false,
-        error: 'Stake amount too high',
-        details: `Stake (${stake}) exceeds maximum allowed amount (${maxAllowedStake})`,
-        available: availableCredit,
-        required: stake,
-        maxAllowed: maxAllowedStake,
-        suggestion: 'Please reduce your stake to a reasonable amount'
-      });
-    }
-    
-    // For credit-based betting, we don't need to check minimum balance
-    // Users can bet up to their credit limit regardless of current balance
-    console.log('✅ [BETS] Credit validation passed:', {
-      stake: stake,
-      availableCredit: availableCredit,
-      canPlaceBet: true,
-      note: 'User can place bet up to credit limit. Balance will be updated after bet placement.'
+    // Enhanced bet validation using BetValidationService
+    const validationResult = await BetValidationService.validateBet({
+      userId,
+      matchId,
+      marketId,
+      selectionId,
+      odds,
+      stake,
+      type
     });
 
-    // Find match by external ID or database ID
-    let match = await database.findOne('Match', { id: matchId });
-    
-    if (!match) {
-      // Try to find by externalId
-      match = await database.findOne('Match', { externalId: matchId });
-    }
-    
-    if (!match) {
-      // Try to find by beventId
-      match = await database.findOne('Match', { beventId: matchId });
-    }
-    
-    if (!match) {
-      return res.status(404).json({
-        success: false,
-        error: 'Match not found'
-      });
-    }
-
-    console.log('🔍 [BETS] Match found:', {
-      matchId: match.id,
-      externalId: match.externalId,
-      beventId: match.beventId,
-      title: match.title
-    });
-
-    // Calculate potential win based on bet type
-    let potentialWin = 0;
-    if (type === 'back') {
-      potentialWin = (odds - 1) * stake;
-    } else {
-      potentialWin = stake * (odds - 1);
-    }
-
-    // Validate potential win doesn't exceed reasonable limits
-    const maxPotentialWin = availableCredit * 5; // Maximum 5x credit limit as potential win
-    if (potentialWin > maxPotentialWin) {
+    if (!validationResult.valid) {
       return res.status(400).json({
         success: false,
-        error: 'Potential win too high',
-        details: `Potential win (${potentialWin}) exceeds maximum allowed (${maxPotentialWin})`,
-        stake: stake,
-        odds: odds,
-        type: type,
-        maxAllowedWin: maxPotentialWin,
-        suggestion: 'Please reduce your stake or choose different odds'
+        error: validationResult.error,
+        details: validationResult.details || null
       });
     }
+
+    const { user, selection, balanceInfo, stakeInfo } = validationResult;
+
+    // Calculate potential outcomes using ExposureService
+    const potentialOutcomes = ExposureService.calculatePotentialOutcomes(type, stake, odds);
+    const potentialWin = potentialOutcomes.potentialWin;
 
     // Create bet record matching the database schema
     const betData = {
       id: `bet_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       userId: userId,
-      matchId: match.id, // Use the actual database match ID
+      matchId: matchId,
       marketId: marketId,
       selectionId: selectionId,
       selectionName: selectionName,
@@ -203,7 +87,12 @@ router.post('/place', jwtAuth(), async (req, res) => {
       stake: stake,
       type: type,
       potentialWin: potentialWin,
-      status: 'PENDING', // Using the enum value from schema
+      status: 'PENDING',
+      // Enhanced odds data
+      marketType: marketType || null,
+      oddsSnapshot: oddsSnapshot || null,
+      oddsTier: oddsTier || null,
+      availableStake: availableStake || null,
       createdAt: new Date()
     };
 
@@ -217,15 +106,16 @@ router.post('/place', jwtAuth(), async (req, res) => {
         throw new Error('Failed to create bet record');
       }
 
-          // Update user balance (deduct stake) and exposure
-    const newBalance = currentBalance - stake;
-    const newExposure = (user.exposure || 0) + stake;
-    
-    await database.update('User', { id: userId }, {
-      balance: newBalance,
-      exposure: newExposure,
-      updatedAt: new Date()
-    });
+      // Calculate bet exposure using ExposureService
+      const betExposure = ExposureService.calculateBetExposure(type, stake, odds);
+      
+      // Update user balance and exposure using ExposureService
+      const balanceUpdateResult = await ExposureService.updateUserBalanceAndExposure(
+        userId, 
+        stake, 
+        betExposure, 
+        client
+      );
 
       // Create ledger entry for the bet transaction
       const ledgerData = {
@@ -234,37 +124,33 @@ router.post('/place', jwtAuth(), async (req, res) => {
         collection: 'BET_PLACEMENT',
         debit: stake,
         credit: 0,
-        balanceAfter: newBalance,
+        balanceAfter: balanceUpdateResult.newBalance,
         type: 'BET_PLACEMENT',
-        remark: `Bet placed on ${match.title} - ${selectionName} @ ${odds}`,
+        remark: `Bet placed on ${selectionName} @ ${odds} (${type})`,
         referenceId: bet.id,
         transactionType: 'BET_PLACEMENT',
-        matchId: match.id,
+        matchId: matchId,
         createdAt: new Date()
       };
 
       await database.insert('Ledger', ledgerData);
 
-      return { bet, newBalance, newExposure };
+      return { 
+        bet, 
+        newBalance: balanceUpdateResult.newBalance, 
+        newExposure: balanceUpdateResult.newExposure,
+        betExposure
+      };
     });
 
-    const { bet, newBalance, newExposure } = result;
+    const { bet, newBalance, newExposure, betExposure } = result;
     console.log('✅ [BETS] Database transaction completed successfully');
 
     console.log('✅ [BETS] Bet placed successfully:', {
       betId: bet.id,
       newBalance,
-      newExposure
-    });
-
-    // Verify the balance was actually updated
-    const updatedUser = await database.findOne('User', { id: userId });
-    console.log('🔍 [BETS] Balance verification:', {
-      userId: updatedUser.id,
-      previousBalance: currentBalance,
-      newBalance: updatedUser.balance,
-      stake: stake,
-      expectedBalance: currentBalance - stake
+      newExposure,
+      betExposure
     });
 
     // Return success response
@@ -273,14 +159,16 @@ router.post('/place', jwtAuth(), async (req, res) => {
       message: 'Bet placed successfully',
       data: {
         betId: bet.id,
-        newBalance: updatedUser.balance,
-        newExposure: updatedUser.exposure,
-        bet: bet, // Return the actual stored bet from database
-        balanceVerification: {
-          previousBalance: currentBalance,
-          currentBalance: updatedUser.balance,
-          stake: stake,
-          expectedBalance: currentBalance - stake
+        newBalance: newBalance,
+        newExposure: newExposure,
+        betExposure: betExposure,
+        bet: bet,
+        validationInfo: {
+          marketStatus: 'VALID',
+          oddsValidation: 'VALID',
+          userStatus: 'ACTIVE',
+          balanceSufficient: true,
+          exposureWithinLimit: true
         }
       }
     });
@@ -339,15 +227,16 @@ router.post('/:betId/cancel', jwtAuth(), async (req, res) => {
         updatedAt: new Date()
       });
 
-      // Refund stake to user balance
-      const newBalance = currentBalance + bet.stake;
-      const newExposure = Math.max(0, currentExposure - bet.stake);
-
-      await database.update('User', { id: userId }, {
-        balance: newBalance,
-        exposure: newExposure,
-        updatedAt: new Date()
-      });
+      // Calculate bet exposure for proper reversal
+      const betExposure = ExposureService.calculateBetExposure(bet.type, bet.stake, bet.odds);
+      
+      // Revert user balance and exposure using ExposureService
+      const balanceUpdateResult = await ExposureService.revertUserBalanceAndExposure(
+        userId,
+        bet.stake,
+        betExposure,
+        client
+      );
 
       // Create ledger entry for refund
       const ledgerData = {
@@ -356,9 +245,9 @@ router.post('/:betId/cancel', jwtAuth(), async (req, res) => {
         collection: 'BET_CANCELLATION',
         debit: 0,
         credit: bet.stake,
-        balanceAfter: newBalance,
+        balanceAfter: balanceUpdateResult.newBalance,
         type: 'BET_CANCELLATION',
-        remark: `Bet cancelled - ${bet.selectionName} @ ${bet.odds} - Refund of ${bet.stake}`,
+        remark: `Bet cancelled - ${bet.selectionName} @ ${bet.odds} (${bet.type}) - Refund of ${bet.stake}`,
         referenceId: bet.id,
         transactionType: 'BET_CANCELLATION',
         matchId: bet.matchId,
@@ -367,7 +256,12 @@ router.post('/:betId/cancel', jwtAuth(), async (req, res) => {
 
       await database.insert('Ledger', ledgerData);
 
-      return { newBalance, newExposure };
+      return { 
+        newBalance: balanceUpdateResult.newBalance, 
+        newExposure: balanceUpdateResult.newExposure,
+        refundedStake: bet.stake,
+        removedExposure: betExposure
+      };
     });
 
     console.log('✅ [BETS] Bet cancelled successfully:', {
@@ -449,6 +343,66 @@ router.get('/match/:matchId', jwtAuth(), async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch match bets'
+    });
+  }
+});
+
+// GET /api/bets/exposure/:userId - Get user exposure summary
+router.get('/exposure/:userId', jwtAuth(), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const requestingUserId = req.user?.userId;
+
+    // Users can only view their own exposure
+    if (userId !== requestingUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
+    const exposureSummary = await ExposureService.getExposureSummary(userId);
+    
+    res.json({
+      success: true,
+      data: exposureSummary
+    });
+
+  } catch (error) {
+    console.error('❌ [BETS] Error fetching user exposure:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch exposure summary'
+    });
+  }
+});
+
+// GET /api/bets/commission/:userId - Get user commission summary
+router.get('/commission/:userId', jwtAuth(), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const requestingUserId = req.user?.userId;
+
+    // Users can only view their own commission info
+    if (userId !== requestingUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
+    const commissionSummary = await CommissionService.getCommissionSummary(userId);
+    
+    res.json({
+      success: true,
+      data: commissionSummary
+    });
+
+  } catch (error) {
+    console.error('❌ [BETS] Error fetching user commission:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch commission summary'
     });
   }
 });

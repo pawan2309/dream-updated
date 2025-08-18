@@ -132,8 +132,8 @@ class CronScheduler {
     }
 
     scheduleOddsRefreshJobs() {
-        // Every 30 seconds: enqueue per-fixture BM odds refresh jobs
-        this.scheduleTask('cricket-odds-refresh-for-fixtures', '*/30 * * * * *', async () => {
+        // Every 3 seconds: enqueue per-fixture BM odds refresh jobs
+        this.scheduleTask('cricket-odds-refresh-for-fixtures', '*/3 * * * * *', async () => {
             try {
                 const { enqueued } = await enqueueRefreshForFixtures();
                 logger.info(`cricket-odds-refresh-for-fixtures tick: enqueued=${enqueued}`);

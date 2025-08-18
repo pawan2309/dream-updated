@@ -1,5 +1,5 @@
-// Import the working Prisma client from the root directory
-import { PrismaClient } from '../../../../node_modules/@prisma/client';
+// Import the Prisma client from the correct path
+import { PrismaClient } from '@prisma/client';
 
 // Create a global Prisma client instance
 const globalForPrisma = globalThis as unknown as {

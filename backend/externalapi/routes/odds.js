@@ -3,6 +3,7 @@ const router = express.Router();
 const redis = require('../utils/redisClient');
 const logger = require('../utils/logger');
 const config = require('../../config');
+const autoMatchSync = require('../services/autoMatchSync');
 
 /**
  * GET /api/odds/test - Simple test endpoint to verify the route is working
@@ -152,6 +153,33 @@ router.get('/:matchId', async (req, res) => {
       logger.warn(`⚠️ [ODDS] Failed to cache odds: ${cacheError.message}`);
     }
 
+    // 🔄 AUTO-SYNC: Queue match for database synchronization
+    try {
+      await autoMatchSync.queueMatchForSync({
+        eventId: cleanMatchId,
+        eventName: transformedOdds.eventName,
+        name: transformedOdds.eventName,
+        status: transformedOdds.status,
+        iplay: transformedOdds.iplay,
+        inPlay: transformedOdds.inPlay,
+        tournament: transformedOdds.tournament,
+        cname: transformedOdds.cname,
+        startTime: transformedOdds.startTime,
+        stime: transformedOdds.stime,
+        teams: transformedOdds.teams,
+        brunners: transformedOdds.brunners,
+        matchType: transformedOdds.matchType,
+        gtype: transformedOdds.gtype,
+        apiSource: transformedOdds.apiSource,
+        bmarketId: transformedOdds.bmarketId,
+        raw: transformedOdds.raw
+      });
+      logger.info(`✅ [ODDS] Queued match ${cleanMatchId} for auto-sync with enhanced metadata`);
+    } catch (syncError) {
+      logger.warn(`⚠️ [ODDS] Auto-sync failed for match ${cleanMatchId}:`, syncError.message);
+      // Don't fail the odds request if sync fails
+    }
+
     const totalTime = Date.now() - startTime;
     logger.info(`✅ [ODDS] Odds fetch completed successfully in ${totalTime}ms`);
     logger.info(`✅ [ODDS] Returning transformed odds with ${transformedOdds.markets?.length || 0} markets`);
@@ -170,6 +198,122 @@ router.get('/:matchId', async (req, res) => {
         totalTime: totalTime,
         timestamp: new Date().toISOString()
       }
+    });
+  }
+});
+
+// GET /api/odds/sync/status - Get auto-sync service status
+router.get('/sync/status', async (req, res) => {
+  try {
+    const status = autoMatchSync.getStatus();
+    
+    // Enhanced status information
+    const enhancedStatus = {
+      ...status,
+      serviceInfo: {
+        name: 'Auto-Match Sync Service',
+        description: 'Automatically syncs matches from odds API to database',
+        features: [
+          'Automatic match creation/updates',
+          'Real-time ID validation and fixing',
+          'Enhanced field population',
+          'Automatic cleanup of incorrect IDs',
+          'Safe foreign key handling for bets',
+          'Automatic bet migration when needed'
+        ]
+      },
+      foreignKeySafety: {
+        description: 'Maintains referential integrity with bets table',
+        betMigration: 'Automatically migrates bets when fixing match IDs',
+        auditTrail: 'Preserves old matches as deleted for audit purposes'
+      },
+      lastCleanup: status.lastCleanup || 'Not run yet',
+      nextCleanup: status.syncCycleCount ? `After ${5 - (status.syncCycleCount % 5)} more sync cycles` : 'Unknown'
+    };
+    
+    res.json({
+      success: true,
+      data: enhancedStatus
+    });
+  } catch (error) {
+    console.error('❌ [ODDS] Error getting sync status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get sync status'
+    });
+  }
+});
+
+// POST /api/odds/sync/match/:eventId - Force sync a specific match
+router.post('/sync/match/:eventId', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { matchData } = req.body;
+    
+    console.log(`🔄 [ODDS] Force syncing match ${eventId}`);
+    
+    const result = await autoMatchSync.forceSyncMatch(eventId, matchData || {});
+    
+    res.json({
+      success: true,
+      message: `Match ${eventId} synced successfully`,
+      data: result
+    });
+  } catch (error) {
+    console.error(`❌ [ODDS] Error force syncing match ${req.params.eventId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to sync match',
+      details: error.message
+    });
+  }
+});
+
+// POST /api/odds/sync/fix-existing - Fix all existing matches with incorrect data
+router.post('/sync/fix-existing', async (req, res) => {
+  try {
+    logger.info('[ODDS] Starting fix for existing matches...');
+    
+    // This will trigger the automatic cleanup and ID fixing
+    await autoMatchSync.performAutomaticIdCleanup();
+    
+    res.json({
+      success: true,
+      message: 'Existing matches fix process initiated',
+      note: 'Check /api/odds/sync/status for progress'
+    });
+  } catch (error) {
+    logger.error('[ODDS] Error fixing existing matches:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fix existing matches',
+      details: error.message
+    });
+  }
+});
+
+// POST /api/odds/sync/fetch-all - Manually trigger bulk match fetch
+router.post('/sync/fetch-all', async (req, res) => {
+  try {
+    logger.info('[ODDS] Manually triggering bulk match fetch...');
+    
+    const { apiEndpoint } = req.body;
+    const fetchResult = await autoMatchSync.fetchAllMatchesFromAPI(apiEndpoint);
+    
+    res.json({
+      success: true,
+      message: `Bulk match fetch completed: ${fetchResult} matches queued`,
+      data: {
+        matchesQueued: fetchResult,
+        status: autoMatchSync.getStatus()
+      }
+    });
+  } catch (error) {
+    logger.error('[ODDS] Error during bulk match fetch:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch matches',
+      details: error.message
     });
   }
 });
@@ -344,7 +488,27 @@ function transformExternalOdds(externalData, matchId) {
       lastUpdated: new Date().toISOString(),
       markets: markets,
       source: 'shamexch.xyz',
-      success: true
+      success: true,
+      
+      // Enhanced match metadata for auto-sync
+      eventId: matchId,
+      eventName: externalData.eventName || externalData.name || `Match ${matchId}`,
+      status: externalData.status || externalData.iplay || 'upcoming',
+      iplay: externalData.iplay || externalData.inPlay || false,
+      inPlay: externalData.inPlay || externalData.iplay || false,
+      tournament: externalData.tournament || externalData.cname || 'Cricket Match',
+      cname: externalData.cname || externalData.tournament || 'Cricket Match',
+      startTime: externalData.startTime || externalData.stime || null,
+      stime: externalData.stime || externalData.startTime || null,
+      teams: externalData.teams || externalData.brunners || null,
+      brunners: externalData.brunners || externalData.teams || null,
+      matchType: externalData.matchType || externalData.gtype || 'match',
+      gtype: externalData.gtype || externalData.matchType || 'match',
+      apiSource: 'shamexch.xyz',
+      bmarketId: externalData.bmarketId || externalData.marketId || null,
+      
+      // Raw data for additional processing
+      raw: externalData
     };
 
   } catch (error) {

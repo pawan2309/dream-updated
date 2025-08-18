@@ -2,7 +2,59 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../lib/prisma';
 import { CommissionCalculator } from '../../../lib/commissionCalculator';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+// Role-based access control middleware
+function withRoleAuth(handler: any) {
+  return async (req: NextApiRequest, res: NextApiResponse) => {
+    try {
+      // Get user session from cookies
+      const session = req.cookies['betx_session'];
+      if (!session) {
+        return res.status(401).json({ success: false, message: 'No session found' });
+      }
+
+      // Verify session
+      const jwt = require('jsonwebtoken');
+      let decoded;
+      try {
+        decoded = jwt.verify(session, process.env.JWT_SECRET || 'dev_secret');
+      } catch (error) {
+        return res.status(401).json({ success: false, message: 'Invalid session' });
+      }
+
+      const userRole = decoded.user?.role;
+      
+      if (!userRole) {
+        return res.status(401).json({ success: false, message: 'User role not found in session' });
+      }
+
+      // Check if user can access restricted sections (COMMISSIONS, OLD DATA, LOGIN REPORTS)
+      // Only SUB_OWNER and above can access these sections
+      const restrictedRoles = ['SUB_OWNER'];
+      if (!restrictedRoles.includes(userRole)) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Access denied: Commissions section is restricted to SUB_OWNER and above' 
+        });
+      }
+
+      // Add user info to request for use in handler
+      (req as any).user = decoded.user;
+
+      // Call the original handler
+      return handler(req, res);
+
+    } catch (error) {
+      console.error('Role auth middleware error:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Internal server error',
+        error: (error as Error).message 
+      });
+    }
+  };
+}
+
+export default withRoleAuth(async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
@@ -33,7 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-}
+});
 
 /**
  * Get commission report for a specific user
@@ -117,7 +169,8 @@ async function getRoleCommissionReport(role: string, startDate?: string, endDate
     include: {
       profitDistributions: {
         where: whereClause
-      }
+      },
+      UserCommissionShare: true
     }
   });
 
@@ -130,9 +183,9 @@ async function getRoleCommissionReport(role: string, startDate?: string, endDate
     totalCommissions: user.profitDistributions.reduce((sum, dist) => sum + dist.amountEarned, 0),
     totalBets: user.profitDistributions.length,
     commissionConfig: {
-      share: user.share || 0,
-      matchcommission: user.matchcommission || 0,
-      sessioncommission: user.sessioncommission || 0,
+      share: user.UserCommissionShare?.share || 0,
+      matchcommission: user.UserCommissionShare?.matchcommission || 0,
+      sessioncommission: user.UserCommissionShare?.sessioncommission || 0,
       mobileshare: user.mobileshare || 0
     }
   }));
