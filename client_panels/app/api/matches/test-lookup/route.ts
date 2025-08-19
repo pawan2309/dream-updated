@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
       where: { 
         OR: [
           { id: matchId },
-          { beventId: matchId },
-          { externalId: matchId }
+          { beventId: matchId }
         ],
         isDeleted: false
       }
@@ -36,7 +35,7 @@ export async function POST(request: NextRequest) {
         where: { isDeleted: false },
         select: {
           id: true,
-          externalId: true,
+          matchId: true,
           beventId: true,
           title: true,
           status: true,
@@ -50,7 +49,7 @@ export async function POST(request: NextRequest) {
         error: 'Match not found',
         searchedFor: matchId,
         availableMatches: allMatches,
-        searchFields: ['id', 'beventId', 'externalId']
+        searchFields: ['id', 'beventId', 'matchId']
       });
     }
 
@@ -60,7 +59,7 @@ export async function POST(request: NextRequest) {
       success: true,
       match: {
         id: match.id,
-        externalId: match.externalId,
+        matchId: match.matchId,
         beventId: match.beventId,
         title: match.title,
         status: match.status,

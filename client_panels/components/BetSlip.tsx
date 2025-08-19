@@ -138,7 +138,7 @@ export default function BetSlip({
             step="0.01"
           />
           <div className="text-xs text-gray-500 mt-1">
-            Available Chips: ₹{userBalance.toFixed(2)}
+            Available Chips: {userBalance.toFixed(2)}
           </div>
         </div>
 
@@ -146,7 +146,7 @@ export default function BetSlip({
         <div className="bg-green-50 rounded-lg p-2">
           <div className="text-xs text-gray-600 mb-1">Potential Profit</div>
           <div className="font-bold text-green-700 text-base">
-            ₹{calculatePotentialProfit().toFixed(2)}
+            {calculatePotentialProfit().toFixed(2)}
           </div>
         </div>
 

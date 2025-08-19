@@ -128,6 +128,41 @@ router.get('/:matchId', async (req, res) => {
         firstMarketSections: externalData.data[0].section?.length || 0
       } : 'No data'
     })}`);
+    
+    // Log detailed sample of external API data to understand structure
+    if (externalData.data && Array.isArray(externalData.data) && externalData.data.length > 0) {
+      logger.info(`🔍 [ODDS] Analyzing ${externalData.data.length} markets for gstatus values...`);
+      
+      externalData.data.forEach((market, marketIndex) => {
+        logger.info(`🔍 [ODDS] Market ${marketIndex + 1}: ${market.mname}`, {
+          status: market.status,
+          sectionCount: market.section?.length || 0
+        });
+        
+        if (market.section && Array.isArray(market.section)) {
+          market.section.forEach((section, sectionIndex) => {
+            logger.info(`🔍 [ODDS] Market ${marketIndex + 1}, Section ${sectionIndex + 1}: ${section.nat}`, {
+              gstatus: section.gstatus,
+              status: section.status,
+              oddsCount: section.odds?.length || 0
+            });
+            
+            if (section.odds && Array.isArray(section.odds)) {
+              section.odds.forEach((odd, oddIndex) => {
+                if (oddIndex < 3) { // Log first 3 odds to avoid spam
+                  logger.info(`🔍 [ODDS] Market ${marketIndex + 1}, Section ${sectionIndex + 1}, Odd ${oddIndex + 1}:`, {
+                    otype: odd.otype,
+                    odds: odd.odds,
+                    gstatus: odd.gstatus,
+                    status: odd.status
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+    }
 
     // Transform external data to match our frontend expectations
     logger.info(`🔄 [ODDS] Starting data transformation...`);
@@ -198,6 +233,43 @@ router.get('/:matchId', async (req, res) => {
         totalTime: totalTime,
         timestamp: new Date().toISOString()
       }
+    });
+  }
+});
+
+/**
+ * DELETE /api/odds/:matchId/cache - Clear cache for a specific match (for testing)
+ */
+router.delete('/:matchId/cache', async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const cleanMatchId = matchId.split('(')[0];
+    
+    logger.info(`🗑️ [ODDS] Clearing cache for match: ${cleanMatchId}`);
+    
+    const deleted = await redis.del(`odds:match:${cleanMatchId}`);
+    
+    if (deleted > 0) {
+      logger.info(`✅ [ODDS] Cache cleared successfully for match: ${cleanMatchId}`);
+      res.json({
+        success: true,
+        message: `Cache cleared for match ${cleanMatchId}`,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      logger.info(`📋 [ODDS] No cache found for match: ${cleanMatchId}`);
+      res.json({
+        success: true,
+        message: `No cache found for match ${cleanMatchId}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    logger.error(`❌ [ODDS] Error clearing cache: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear cache',
+      message: error.message
     });
   }
 });
@@ -406,12 +478,19 @@ function transformExternalOdds(externalData, matchId) {
               logger.info(`🔄 [TRANSFORM] Adding ${sortedBackOdds.length} back odds options: ${JSON.stringify(sortedBackOdds.map(o => ({ odds: o.odds, size: o.size })))}`);
               
               sortedBackOdds.forEach((backOdd, oddIndex) => {
+                // Check if gstatus is at odd level or section level
+                const gstatus = backOdd.gstatus || section.gstatus || 'ACTIVE';
+                
+                // Debug logging for gstatus values
+                logger.info(`🔍 [DEBUG] Back odd gstatus - odd: ${backOdd.gstatus}, section: ${section.gstatus}, final: ${gstatus}`);
+                
                 transformedMarket.selections.push({
                   id: `${transformedMarket.id}_${secIndex}_back_${oddIndex}`,
                   name: section.nat || `Selection ${secIndex + 1}`,
                   odds: backOdd.odds,
                   stake: backOdd.size || 0,
-                  status: section.gstatus === 'ACTIVE' ? 'active' : 'suspended',
+                  status: (gstatus && gstatus !== 'ACTIVE') ? 'suspended' : 'active',
+                  gstatus: gstatus, // Preserve the gstatus field (from odd or section)
                   type: 'back',
                   tier: oddIndex + 1 // 1 = best, 2 = second best, etc.
                 });
@@ -421,7 +500,8 @@ function transformExternalOdds(externalData, matchId) {
                   name: section.nat || `Selection ${secIndex + 1}`,
                   odds: backOdd.odds,
                   stake: backOdd.size || 0,
-                  status: section.gstatus === 'ACTIVE' ? 'active' : 'suspended',
+                  status: (gstatus && gstatus !== 'ACTIVE') ? 'suspended' : 'active',
+                  gstatus: gstatus, // Use the correct gstatus variable
                   type: 'back',
                   tier: oddIndex + 1
                 })}`);
@@ -436,12 +516,19 @@ function transformExternalOdds(externalData, matchId) {
               logger.info(`🔄 [TRANSFORM] Adding ${sortedLayOdds.length} lay odds options: ${JSON.stringify(sortedLayOdds.map(o => ({ odds: o.odds, size: o.size })))}`);
               
               sortedLayOdds.forEach((layOdd, oddIndex) => {
+                // Check if gstatus is at odd level or section level
+                const gstatus = layOdd.gstatus || section.gstatus || 'ACTIVE';
+                
+                // Debug logging for gstatus values
+                logger.info(`🔍 [DEBUG] Lay odd gstatus - odd: ${layOdd.gstatus}, section: ${section.gstatus}, final: ${gstatus}`);
+                
                 transformedMarket.selections.push({
                   id: `${transformedMarket.id}_${secIndex}_lay_${oddIndex}`,
                   name: section.nat || `Selection ${secIndex + 1}`,
                   odds: layOdd.odds,
                   stake: layOdd.size || 0,
-                  status: section.gstatus === 'ACTIVE' ? 'active' : 'suspended',
+                  status: (gstatus && gstatus !== 'ACTIVE') ? 'suspended' : 'active',
+                  gstatus: gstatus, // Preserve the gstatus field (from odd or section)
                   type: 'lay',
                   tier: oddIndex + 1 // 1 = best, 2 = second best, etc.
                 });
@@ -451,7 +538,8 @@ function transformExternalOdds(externalData, matchId) {
                   name: section.nat || `Selection ${secIndex + 1}`,
                   odds: layOdd.odds,
                   stake: layOdd.size || 0,
-                  status: section.gstatus === 'ACTIVE' ? 'active' : 'suspended',
+                  status: (gstatus && gstatus !== 'ACTIVE') ? 'suspended' : 'active',
+                  gstatus: gstatus, // Use the correct gstatus variable
                   type: 'lay',
                   tier: oddIndex + 1
                 })}`);

@@ -8,7 +8,7 @@ const CommissionService = require('../services/commissionService');
 // POST /api/bet-settlement/settle-match - Settle a completed match
 router.post('/settle-match', jwtAuth(), async (req, res) => {
   try {
-    const { matchId, winner, result, resultData } = req.body;
+    const { matchId, winner, result } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -226,7 +226,7 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
         winner: winner,
         result: result,
         settledAt: new Date(),
-        resultData: resultData || {},
+
         lastUpdated: new Date()
       });
 

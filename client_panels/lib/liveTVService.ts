@@ -13,7 +13,9 @@ export interface LiveTVResponse {
 }
 
 export class LiveTVService {
-  private baseUrl: string;
+  private baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL 
+    ? process.env.NEXT_PUBLIC_API_BASE_URL
+    : 'http://localhost:3000';
 
   constructor() {
     this.baseUrl = process.env.NODE_ENV === 'production' 

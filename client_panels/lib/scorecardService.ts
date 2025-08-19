@@ -48,7 +48,6 @@ class ScorecardService {
   private baseUrl: string;
 
   constructor() {
-    // Use the frontend API endpoint instead of calling backend directly
     this.baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
   }
 

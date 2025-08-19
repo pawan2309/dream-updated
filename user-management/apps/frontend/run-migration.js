@@ -23,7 +23,6 @@ ALTER TABLE "Bet" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) DEFAULT CURR
 ALTER TABLE "Match" ADD COLUMN IF NOT EXISTS "winner" TEXT;
 ALTER TABLE "Match" ADD COLUMN IF NOT EXISTS "result" TEXT;
 ALTER TABLE "Match" ADD COLUMN IF NOT EXISTS "settledAt" TIMESTAMP(3);
-ALTER TABLE "Match" ADD COLUMN IF NOT EXISTS "resultData" JSONB;
 
 -- Create BetSettlement table if it doesn't exist
 CREATE TABLE IF NOT EXISTS "BetSettlement" (
@@ -127,7 +126,7 @@ async function runMigration() {
     console.log('✅ Migration completed successfully!');
     console.log('📊 New fields added:');
     console.log('   - Bet table: wonAmount, lostAmount, result, settledAt, updatedAt');
-    console.log('   - Match table: winner, result, settledAt, resultData');
+    console.log('   - Match table: winner, result, settledAt');
     console.log('   - New table: BetSettlement');
     console.log('   - New indexes and foreign keys');
     

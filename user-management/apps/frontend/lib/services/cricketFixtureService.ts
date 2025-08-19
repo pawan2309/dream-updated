@@ -19,7 +19,6 @@ export interface CricketFixtureData {
   iscc?: boolean;
   teams?: any[];
   brunners?: any[];
-  rawData?: any;
 }
 
 export interface UpsertedFixture {
@@ -31,7 +30,7 @@ export interface UpsertedFixture {
   startTime: Date | null;
   isLive: boolean;
   status: MatchStatus;
-  externalId: string;
+  matchId: string;
 }
 
 export class CricketFixtureService {
@@ -84,7 +83,7 @@ export class CricketFixtureService {
     try {
       const fixtureData = {
         title: fixture.name || fixture.ename || 'Cricket Match',
-        externalId: fixture.bmarketId || fixture.beventId || 'unknown',
+        matchId: fixture.bmarketId || fixture.beventId || 'unknown',
         status: this.mapStatus(fixture.status || fixture.iplay),
         bmarketId: fixture.bmarketId || null,
         beventId: fixture.beventId || null,
@@ -97,7 +96,6 @@ export class CricketFixtureService {
         teams: fixture.teams || fixture.brunners || null,
         lastUpdated: new Date(),
         apiSource: 'marketsarket.qnsports.live',
-        rawData: fixture.rawData || fixture,
         isActive: true,
         isDeleted: false
       };
@@ -115,7 +113,7 @@ export class CricketFixtureService {
         startTime: result.startTime,
         isLive: result.isLive,
         status: result.status,
-        externalId: result.externalId
+        matchId: result.matchId
       };
     } catch (error) {
       console.error('❌ CricketFixtureService: createFixture failed:', error);
@@ -140,8 +138,7 @@ export class CricketFixtureService {
         matchType: fixture.matchType || fixture.gtype || 'match',
         isCricket: fixture.isCricket !== false && fixture.iscc !== false,
         teams: fixture.teams || fixture.brunners || null,
-        lastUpdated: new Date(),
-        rawData: fixture.rawData || fixture
+        lastUpdated: new Date()
       };
 
       const result = await prisma.match.update({
@@ -158,7 +155,7 @@ export class CricketFixtureService {
         startTime: result.startTime,
         isLive: result.isLive,
         status: result.status,
-        externalId: result.externalId
+        matchId: result.matchId
       };
     } catch (error) {
       console.error('❌ CricketFixtureService: updateFixture failed:', error);

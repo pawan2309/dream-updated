@@ -7,18 +7,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { title, externalId, status = 'UPCOMING' } = req.body;
+    const { title, matchId, status = 'UPCOMING' } = req.body;
 
-    if (!title || !externalId) {
+    if (!title || !matchId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'title and externalId are required' 
+        message: 'title and matchId are required' 
       });
     }
 
-    // Check if match with externalId already exists
+    // Check if match with matchId already exists
     const existingMatch = await prisma.match.findUnique({
-      where: { externalId }
+      where: { matchId }
     });
 
     if (existingMatch) {
@@ -32,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const match = await prisma.match.create({
       data: {
         title,
-        externalId,
+        matchId,
         status: status as 'UPCOMING' | 'LIVE' | 'CLOSED'
       }
     });

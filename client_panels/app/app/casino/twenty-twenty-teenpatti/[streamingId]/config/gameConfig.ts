@@ -95,7 +95,7 @@ export const GAME_MESSAGES = {
 
 // SEO Configuration
 export const SEO_CONFIG = {
-  TITLE: 'Teen Patti 20-20 - Live Casino Game | 2XBAT',
+  TITLE: 'Teen Patti 20-20 - Live Casino Game | 3XBAT',
   DESCRIPTION: 'Play Teen Patti 20-20 live casino game with real-time betting, instant results, and exciting gameplay. Join thousands of players now!',
   KEYWORDS: 'teen patti, casino game, live betting, online casino, card game, 20-20, real money',
   OG_IMAGE: '/images/teen-patti-og.jpg'

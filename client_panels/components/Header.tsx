@@ -11,12 +11,35 @@ export default function Header() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [liveBalance, setLiveBalance] = useState<number>(0)
   const [exposure, setExposure] = useState<number>(0)
-  const [limit, setLimit] = useState<number>(0)
   const [isBalanceLoading, setIsBalanceLoading] = useState(false)
-  const [isLimitLoading, setIsLimitLoading] = useState(false)
   const router = useRouter()
   const { user, logout, authenticated } = useAuth()
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Debug logging to see what data we're getting
+  useEffect(() => {
+    console.log('🔍 Header component received user data:', {
+      user,
+      authenticated,
+      userName: user?.name,
+      userUsername: user?.username,
+      userCode: user?.code,
+      userCreditLimit: user?.creditLimit,
+      userBalance: user?.balance,
+      userExposure: user?.exposure,
+      hasName: !!user?.name,
+      hasUsername: !!user?.username,
+      hasCode: !!user?.code,
+      hasCreditLimit: !!user?.creditLimit,
+      hasBalance: !!user?.balance,
+      hasExposure: !!user?.exposure,
+      dataTypes: {
+        balance: typeof user?.balance,
+        creditLimit: typeof user?.creditLimit,
+        exposure: typeof user?.exposure
+      }
+    });
+  }, [user, authenticated]);
 
   // Function to fetch live balance
   const fetchLiveBalance = async () => {
@@ -51,43 +74,6 @@ export default function Header() {
       setLiveBalance(user?.balance || 0)
     } finally {
       setIsBalanceLoading(false)
-    }
-  }
-
-  // Function to fetch user limit from database
-  const fetchUserLimit = async () => {
-    try {
-      setIsLimitLoading(true)
-      const token = localStorage.getItem('authToken')
-      if (!token || !user?.id) return
-
-      // Fetch user limit from database
-      const response = await fetch(`/api/user/limit`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success) {
-          setLimit(data.limit || 0)
-        } else {
-          // Fallback to user creditLimit from auth state
-          setLimit(user?.creditLimit || 0)
-        }
-      } else {
-        // Fallback to user creditLimit from auth state
-        setLimit(user?.creditLimit || 0)
-      }
-    } catch (error) {
-      console.error('Error fetching user limit:', error)
-      // Fallback to user creditLimit from auth state
-      setLimit(user?.creditLimit || 0)
-    } finally {
-      setIsLimitLoading(false)
     }
   }
 
@@ -129,17 +115,14 @@ export default function Header() {
   useEffect(() => {
     if (user?.id && authenticated) {
       fetchLiveBalance()
-      fetchUserLimit()
       fetchExposure()
       
       // Set up intervals for real-time updates
       const balanceInterval = setInterval(fetchLiveBalance, 3000) // Every 3 seconds
-      const limitInterval = setInterval(fetchUserLimit, 300000)    // Every 5 minutes
       const exposureInterval = setInterval(fetchExposure, 3000)   // Every 3 seconds
       
       return () => {
         clearInterval(balanceInterval)
-        clearInterval(limitInterval)
         clearInterval(exposureInterval)
       }
     }
@@ -151,13 +134,6 @@ export default function Header() {
       setLiveBalance(user.balance)
     }
   }, [user?.balance])
-
-  // Update limit when user changes
-  useEffect(() => {
-    if (user?.creditLimit !== undefined) {
-      setLimit(user.creditLimit)
-    }
-  }, [user?.creditLimit])
 
   // Update exposure when user changes
   useEffect(() => {
@@ -219,7 +195,7 @@ export default function Header() {
     return (
       <header className="p-4 top-0 flex items-center justify-between h-[60px] border-b border-gray-200" style={{backgroundColor: '#1e3a8a'}}>
         <div className="flex items-center gap-3">
-          <div className="text-white text-lg font-bold">2XBAT</div>
+          <div className="text-white text-lg font-bold">3XBAT</div>
         </div>
         <div className="flex items-center gap-4 text-white">
           <div className="animate-pulse">Loading...</div>
@@ -231,6 +207,7 @@ export default function Header() {
     )
   }
 
+  
   return (
     <>
       {/* Sidebar */}
@@ -239,7 +216,7 @@ export default function Header() {
           <div className="flex items-center justify-between mb-3 p-5">
             <div className="flex items-center gap-2">
               <div className="h-[45px] w-[150px] flex items-center justify-center text-white text-lg font-bold">
-                2XBAT
+                3XBAT
               </div>
             </div>
             <button 
@@ -304,20 +281,17 @@ export default function Header() {
           </div>
           <Link href="/app/dashboard" className="flex items-center gap-2">
             <div className="text-white text-lg font-bold">
-              2XBAT
+              3XBAT
             </div>
           </Link>
         </div>
 
-        {/* Center Section - Chips above, Exposure below */}
+        {/* Center Section - Credit Limit above, Exposure below */}
         <div className="flex flex-col items-center text-white">
           <div className="text-center mb-1">
-            <span className="text-xs font-bold text-white">Chips: </span>
+            <span className="text-xs font-bold text-white">Credit Limit: </span>
             <span className="text-sm font-bold text-green-400">
-              {formatCurrency(limit)}
-              {isLimitLoading && (
-                <div className="inline-block ml-1 animate-spin rounded-full h-2 w-2 border-b border-green-400"></div>
-              )}
+              {formatCurrency(user?.creditLimit || 0)}
             </span>
           </div>
           <div className="text-center">
@@ -328,7 +302,7 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Right Section - Username and Dropdown */}
+        {/* Right Section - User Info and Dropdown */}
         <div className="flex items-center gap-2">
           <div className="relative" ref={dropdownRef}>
             <button
@@ -336,8 +310,8 @@ export default function Header() {
               className="text-white text-xs font-bold hover:bg-blue-800 rounded px-3 py-2 transition-colors duration-200 flex items-center gap-2"
             >
               <span className="flex flex-col items-center">
-                <span>{user?.name || user?.username || 'User'}</span>
-                <span className="text-xs opacity-80">({user?.code || 'N/A'})</span>
+                <span className="font-semibold">{user?.name || user?.username || 'User'}</span>
+                <span className="text-xs opacity-80">({user?.code || user?.username || 'N/A'})</span>
               </span>
               <svg 
                 className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
@@ -351,26 +325,29 @@ export default function Header() {
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                <button
-                  onClick={handleChangePassword}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-150 flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 0 1121 9z" />
-                  </svg>
-                  Change Password
-                </button>
-                <div className="border-t border-gray-100 my-1"></div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors duration-150 flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  Sign Out
-                </button>
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                {/* Actions Section */}
+                <div className="py-1">
+                  <button
+                    onClick={handleChangePassword}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-150 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 0 1121 9z" />
+                    </svg>
+                    Change Password
+                  </button>
+                  <div className="border-t border-gray-100 my-1"></div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors duration-150 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Sign Out
+                  </button>
+                </div>
               </div>
             )}
           </div>

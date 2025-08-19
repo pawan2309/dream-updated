@@ -10,9 +10,9 @@ services:
     environment:
       NODE_ENV: development
       EXTERNAL_API_PORT: 4001
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://redis:6380
       REDIS_HOST: redis
-      REDIS_PORT: 6379
+      REDIS_PORT: 6380
       PG_URL: postgresql://postgres:8079@host.docker.internal:5432/betting_db
       JWT_SECRET: L9vY7z!pQkR#eA1dT3u*Xj5@FbNmC2Ws
       FRONTEND_URL: http://localhost:3000

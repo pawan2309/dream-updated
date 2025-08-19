@@ -149,7 +149,7 @@ export function useInPlayMatches() {
       setError(null);
       
       // Fetch real fixture data from the API (same as match page)
-      const response = await fetch(`http://localhost:4001/provider/cricketmatches`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/provider/cricketmatches`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

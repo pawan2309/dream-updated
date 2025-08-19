@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     console.log('🔍 [TEST-SESSION] Token:', token.substring(0, 20) + '...');
     
     // Test backend session endpoint
-    const response = await fetch('http://localhost:4001/auth/session', {
+    const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/auth/session', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

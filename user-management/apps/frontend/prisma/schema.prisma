@@ -11,9 +11,9 @@ model User {
   id                  String               @id @default(uuid())
   username            String               @unique
   password            String
-  role                Role
-  parentId            String?
   balance             Float                @default(0)
+  role                Role                 @default(USER)
+  parentId            String?
   isActive            Boolean              @default(true)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -26,60 +26,35 @@ model User {
   exposure            Float                @default(0)
   casinoStatus        Boolean?
   bets                Bet[]
-  settlements         BetSettlement[]
   ledger              Ledger[]
   loginSessions       LoginSession[]
-  profitDistributions ProfitDistribution[]
   parent              User?                @relation("UserHierarchy", fields: [parentId], references: [id])
   children            User[]               @relation("UserHierarchy")
   UserCommissionShare UserCommissionShare?
 }
 
-model Ledger {
-  id              String     @id @default(uuid())
-  userId          String
-  collection      String?
-  debit           Float      @default(0)
-  credit          Float      @default(0)
-  balanceAfter    Float
-  type            LedgerType
-  remark          String?
-  createdAt       DateTime   @default(now())
-  referenceId     String?
-  transactionType String?
-  matchId         String?
-  sourceUserId    String?
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-}
-
 model Match {
-  id          String          @id @default(uuid())
-  title       String
-  externalId  String          @unique
-  status      MatchStatus     @default(UPCOMING)
-  createdAt   DateTime        @default(now())
+  id          String      @id @default(uuid())
+  matchId     String      @unique
+  matchName   String
+  matchType   String?
+  sportType   String?
+  status      MatchStatus @default(UPCOMING)
   apiSource   String?
   beventId    String?
   bmarketId   String?
-  isActive    Boolean         @default(true)
-  isCricket   Boolean         @default(true)
-  isDeleted   Boolean         @default(false)
-  isLive      Boolean         @default(false)
-  lastUpdated DateTime        @default(now())
-  matchName   String?
-  matchType   String?
-  rawData     Json?
-  startTime   DateTime?
-  teams       Json?
   tournament  String?
+  startTime   DateTime?
+  createdAt   DateTime    @default(now())
+  lastUpdated DateTime    @updatedAt
+  isActive    Boolean     @default(true)
+  isDeleted   Boolean     @default(false)
+  isLive      Boolean     @default(false)
+  teams       Json?
   result      String?
-  resultData  Json?
-  settledAt   DateTime?
   winner      String?
+  settledAt   DateTime?
   bets        Bet[]
-  settlements BetSettlement[]
   odds        MatchOdds[]
 
   @@index([bmarketId])
@@ -88,106 +63,62 @@ model Match {
   @@index([startTime])
   @@index([isLive])
   @@index([isActive])
-  @@index([createdAt])
-  @@index([settledAt])
-  @@index([winner])
 }
 
 model MatchOdds {
   id          String   @id @default(uuid())
   matchId     String
   marketId    String
-  eventId     String
+  marketName  String
+  gtype       String
+  status      String
   oddsData    Json
-  lastUpdated DateTime @default(now())
-  isActive    Boolean  @default(true)
-  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  lastUpdated DateTime @updatedAt
+  match       Match    @relation(fields: [matchId], references: [matchId])
 
   @@index([marketId])
-  @@index([eventId])
-  @@index([lastUpdated])
-  @@index([isActive])
+  @@index([matchId])
+  @@index([status])
 }
 
 model Bet {
-  id                  String               @id @default(uuid())
-  userId              String
-  matchId             String
-  odds                Float
-  stake               Float
-  potentialWin        Float
-  status              BetStatus            @default(PENDING)
-  createdAt           DateTime             @default(now())
-  marketId            String?
-  selectionId         String?
-  selectionName       String?
-  marketName          String?
-  type                String?
-  
-  // Enhanced odds data storage
-  marketType          String?              // 'match_winner', 'cricketcasino', 'tied_match', 'custom'
-  oddsSnapshot        Json?                // Complete odds data when bet was placed
-  oddsTier            Int?                 // Which tier of odds (1=best, 2=second best, etc.)
-  availableStake      Float?               // Available stake at that odds level
-  
-  lostAmount          Float?
-  result              String?
-  settledAt           DateTime?
-  updatedAt           DateTime?            @updatedAt
-  wonAmount           Float?
-  match               Match                @relation(fields: [matchId], references: [id])
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  settlements         BetSettlement[]
-  profitDistributions ProfitDistribution[]
+  id         String    @id @default(uuid())
+  userId     String
+  matchId    String
+  marketId   String
+  selection  String
+  stake      Float
+  odds       Float
+  betType    String
+  status     BetStatus @default(PENDING)
+  profitLoss Float?
+  createdAt  DateTime  @default(now())
+  settledAt  DateTime?
+  match      Match     @relation(fields: [matchId], references: [matchId])
+  user       User      @relation(fields: [userId], references: [id])
 
-  @@index([userId, createdAt])
-  @@index([marketId])
-  @@index([selectionId])
-  @@index([type])
-  @@index([status])
-  @@index([settledAt])
-  @@index([result])
-  @@index([marketType])
-  @@index([oddsTier])
-}
-
-model ProfitDistribution {
-  id           String   @id @default(uuid())
-  betId        String
-  userId       String
-  profitShare  Float
-  amountEarned Float
-  createdAt    DateTime @default(now())
-  bet          Bet      @relation(fields: [betId], references: [id])
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model BetSettlement {
-  id            String    @id @default(uuid())
-  matchId       String
-  betId         String?
-  userId        String?
-  winner        String
-  result        String
-  settledAt     DateTime  @default(now())
-  totalStakes   Float
-  totalWinnings Float
-  totalLosses   Float
-  winningBets   Int
-  losingBets    Int
-  isProcessed   Boolean   @default(false)
-  processedAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  bet           Bet?      @relation(fields: [betId], references: [id])
-  match         Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  user          User?     @relation(fields: [userId], references: [id])
-
-  @@index([matchId])
-  @@index([betId])
   @@index([userId])
-  @@index([settledAt])
-  @@index([isProcessed])
+  @@index([matchId])
+  @@index([marketId])
+  @@index([status])
+}
+
+model Ledger {
+  id           String   @id @default(uuid())
+  userId       String
+  matchId      String?
+  marketId     String?
+  betId        String?
+  type         String
+  amount       Float
+  balanceAfter Float
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([matchId])
+  @@index([marketId])
+  @@index([betId])
 }
 
 model LoginSession {
@@ -257,24 +188,6 @@ enum Role {
   OWNER
 }
 
-enum LedgerType {
-  DEPOSIT
-  WITHDRAWAL
-  WIN
-  LOSS
-  ADJUSTMENT
-  LIMIT_UPDATE
-  PNL_CREDIT
-  PNL_DEBIT
-  SETTLEMENT
-  BET_PLACEMENT
-  BET_CANCELLATION
-  BET_WIN
-  BET_LOSS
-  BET_SETTLEMENT
-  COMMISSION
-}
-
 enum MatchStatus {
   UPCOMING
   LIVE
@@ -291,8 +204,7 @@ enum BetStatus {
   PENDING
   WON
   LOST
-  CANCELLED
-  SETTLED
+  CANCELED
 }
 
 enum CasinoBetStatus {

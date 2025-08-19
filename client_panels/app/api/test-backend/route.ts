@@ -5,7 +5,7 @@ export async function GET() {
     console.log('🔍 [TEST-BACKEND] Testing backend connection...');
     
     // Test basic backend connectivity
-    const response = await fetch('http://localhost:4001/auth/session', {
+    const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/auth/session', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

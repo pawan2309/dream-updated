@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       select: {
         id: true,
         title: true,
-        externalId: true,
+        matchId: true,
         status: true,
         startTime: true,
         teams: true,
@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         winner: true,
         result: true,
         settledAt: true,
-        resultData: true
+
       },
       orderBy: {
         settledAt: 'desc' // Most recently completed first
@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Transform the data to match the table structure
     const transformedMatches = completedMatches.map(match => ({
       id: match.id,
-      code: match.externalId || match.id.substring(0, 8),
+              code: match.matchId || match.id.substring(0, 8),
       name: match.title || match.matchName || 'Match',
       dateTime: match.startTime,
       matchType: match.matchType || (match.isCricket ? 'Cricket' : 'Other'),
@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       apiSource: match.apiSource,
       settledAt: match.settledAt,
       result: match.result,
-      resultData: match.resultData
+
     }));
 
     res.status(200).json({

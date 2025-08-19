@@ -117,7 +117,6 @@ class DbService {
         teams: fixture.teams || fixture.brunners || null,
         lastUpdated: new Date(),
         apiSource: 'marketsarket.qnsports.live',
-        rawData: fixture.rawData || fixture,
         isActive: true,
         isDeleted: false
       };
@@ -160,8 +159,7 @@ class DbService {
         matchType: fixture.matchType || fixture.gtype || 'match',
         isCricket: fixture.isCricket !== false && fixture.iscc !== false,
         teams: fixture.teams || fixture.brunners || null,
-        lastUpdated: new Date(),
-        rawData: fixture.rawData || fixture
+        lastUpdated: new Date()
       };
 
       const result = await db.update(this.tableName, fixtureId, updateData);
@@ -199,8 +197,7 @@ class DbService {
             const updateData = {
               status: 'COMPLETED',
               isLive: false,
-              lastUpdated: new Date(),
-              rawData: fixture.rawData || fixture
+              lastUpdated: new Date()
             };
             
             await db.update(this.tableName, existingFixture.id, updateData);

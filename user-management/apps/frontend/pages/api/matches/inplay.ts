@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       select: {
         id: true,
         title: true,
-        externalId: true,
+                    matchId: true,
         status: true,
         isLive: true,
         startTime: true,

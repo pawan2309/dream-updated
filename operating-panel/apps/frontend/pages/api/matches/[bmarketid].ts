@@ -13,23 +13,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // First try to find by bmarketId
-    let match = await prisma.match.findFirst({
-      where: {
-        bmarketId: bmarketid,
-        isDeleted: false,
-      },
-    });
-
-    // If not found by bmarketId, try by id
-    if (!match) {
-      match = await prisma.match.findFirst({
+          // First try to find by bmarketId
+      let match = await prisma.match.findFirst({
         where: {
-          id: bmarketid,
+          bmarketId: bmarketid,
           isDeleted: false,
         },
       });
-    }
+
+      // If not found by bmarketId, try by matchId
+      if (!match) {
+        match = await prisma.match.findFirst({
+          where: {
+            matchId: bmarketid,
+            isDeleted: false,
+          },
+        });
+      }
+
+      // If still not found, try by id
+      if (!match) {
+        match = await prisma.match.findFirst({
+          where: {
+            id: bmarketid,
+            isDeleted: false,
+          },
+        });
+      }
 
     if (!match) {
       return res.status(404).json({ message: 'Match not found' });
@@ -74,8 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       isCompletedOdds: true,
       isLineMarketOdds: true,
       wonTeamName: '',
-      teams: match.teams,
-      rawData: match.rawData,
+      teams: match.teams
     };
 
     return res.status(200).json({

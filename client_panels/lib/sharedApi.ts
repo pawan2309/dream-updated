@@ -13,7 +13,6 @@ export interface Match {
   // Optional fields that might be present in some responses
   matchId?: string;
   sport?: string;
-  externalId?: string;
   gameId?: string;
   title?: string;
   section?: any[];
@@ -158,10 +157,9 @@ class SharedApiService {
           isLive: isLive,
           status: mappedStatus,
           venue: match.venue,
-          // Set default values for missing fields
-          matchId: match.id || match.gmid,
-          sport: 'Cricket',
-          externalId: match.beventId || match.id,
+                   // Set default values for missing fields
+         matchId: match.beventId || match.id,
+         sport: 'Cricket',
           gameId: match.bmarketId || match.id,
           title: match.name || match.ename || 'Unknown Match',
           section: match.section || []
@@ -213,9 +211,8 @@ class SharedApiService {
          status: match.status || 'LIVE',
          venue: match.venue,
          // Set default values for missing fields
-         matchId: match.id || match.gmid,
+         matchId: match.beventId || match.id,
          sport: 'Cricket',
-         externalId: match.beventId || match.id,
          gameId: match.bmarketId || match.id,
          title: match.name || match.ename || 'Unknown Match',
          section: match.section || []
@@ -241,7 +238,6 @@ class SharedApiService {
           // Set default values for missing fields
           matchId: match.matchId || match.id,
           sport: match.sport || 'Cricket',
-          externalId: match.externalId || match.id,
           gameId: match.gameId || match.id,
           title: match.title || match.matchName,
           section: match.section || []
@@ -296,9 +292,8 @@ class SharedApiService {
          status: match.status || 'UPCOMING',
          venue: match.venue,
          // Set default values for missing fields
-         matchId: match.id || match.gmid,
+         matchId: match.beventId || match.id,
          sport: 'Cricket',
-         externalId: match.beventId || match.id,
          gameId: match.mid || match.id,
          title: match.ename || 'Unknown Match',
          section: match.section || []
@@ -357,9 +352,8 @@ class SharedApiService {
          status: match.status || 'UPCOMING',
          venue: match.venue,
          // Set default values for missing fields
-         matchId: match.id || match.gmid,
+         matchId: match.beventId || match.id,
          sport: 'Cricket',
-         externalId: match.beventId || match.id,
          gameId: match.mid || match.id,
          title: match.ename || 'Unknown Match',
          section: match.section || []

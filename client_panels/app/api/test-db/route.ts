@@ -1,44 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '../../../lib/prisma';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 [TEST-DB] Testing backend database connection...');
+    console.log('🔍 Testing database connection...');
     
-    // Test backend database ping endpoint
-    const response = await fetch('http://localhost:4001/auth/db-ping', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
+    // Test basic connection
+    await prisma.$connect();
+    console.log('✅ Database connected successfully');
+    
+    // Check if we can query the database
+    const userCount = await prisma.user.count();
+    console.log('📊 Total users in database:', userCount);
+    
+    // Try to find the specific user USE0002
+    const testUser = await prisma.user.findFirst({
+      where: {
+        username: 'USE0002'
       },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        code: true,
+        role: true,
+        balance: true,
+        creditLimit: true,
+        exposure: true,
+        isActive: true
+      }
     });
-
-    console.log('🔍 [TEST-DB] Backend response status:', response.status);
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ [TEST-DB] Backend database test failed:', response.status, errorText);
-      return NextResponse.json({
-        success: false,
-        error: `Database test failed: ${response.status}`,
-        details: errorText
-      });
-    }
-
-    const data = await response.json();
-    console.log('✅ [TEST-DB] Backend database test successful:', JSON.stringify(data, null, 2));
+    console.log('🔍 Test user USE0002 found:', testUser);
+    
+    // Also try to find any user with role USER
+    const anyUser = await prisma.user.findFirst({
+      where: {
+        role: 'USER',
+        isActive: true
+      },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        code: true,
+        role: true,
+        balance: true,
+        creditLimit: true,
+        exposure: true,
+        isActive: true
+      }
+    });
+    
+    console.log('🔍 Any USER role found:', anyUser);
+    
+    // Check database schema
+    const allUsers = await prisma.user.findMany({
+      take: 5,
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        code: true,
+        role: true,
+        balance: true,
+        creditLimit: true,
+        exposure: true,
+        isActive: true
+      }
+    });
+    
+    console.log('📋 Sample users from database:', allUsers);
     
     return NextResponse.json({
       success: true,
-      message: 'Backend database is accessible',
-      data: data
+      message: 'Database test completed',
+      data: {
+        userCount,
+        testUser,
+        anyUser,
+        sampleUsers: allUsers,
+        databaseUrl: process.env.DATABASE_URL || 'Using default connection'
+      }
     });
-
+    
   } catch (error) {
-    console.error('❌ [TEST-DB] Error testing database:', error);
+    console.error('❌ Database test failed:', error);
+    
     return NextResponse.json({
       success: false,
       error: 'Database test failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    }, { status: 500 });
+    
+  } finally {
+    await prisma.$disconnect();
   }
 }

@@ -9,7 +9,7 @@ export async function GET(
     console.log('🎯 Fetching odds for match:', matchId);
 
     // Fetch from backend API
-    const backendUrl = `http://localhost:4001/api/odds/${matchId}`;
+    const backendUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/odds/${matchId}`;
     console.log('🔗 Backend URL:', backendUrl);
     
     const response = await fetch(backendUrl, {

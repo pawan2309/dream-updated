@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const refresh = searchParams.get('refresh');
 
     // Build the backend API URL
-    let backendUrl = 'http://localhost:4001/api/casino';
+    let backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL + '/api/casino';
     const queryParams = new URLSearchParams();
     
     if (status) queryParams.append('status', status);
