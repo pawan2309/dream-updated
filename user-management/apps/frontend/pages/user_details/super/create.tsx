@@ -10,7 +10,7 @@ const SuperAgentCreatePage = () => {
     reference: '',
     password: '',
     contactno: '',
-    balance: '',
+    creditLimit: '',
     share: '',
     commissionType: '',
     casinoShare: '',
@@ -141,7 +141,7 @@ const SuperAgentCreatePage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          creditLimit: Number(form.balance),
+          creditLimit: Number(form.creditLimit),
           role: 'SUPER_AGENT',
           parentId: targetParentId, // Use the selected parent from hierarchy modal
           // Child's commission and share values
@@ -289,7 +289,7 @@ const SuperAgentCreatePage = () => {
                       />
                       <small className="form-text text-muted">This shows how much limit the parent has available</small>
                     </div>
-                    <div className="form-group"><label>Balance</label><input type="number" name="balance" className="form-control shadow-none" value={form.balance} onChange={handleChange} /></div>
+                    <div className="form-group"><label>Credit Limit</label><input type="number" name="creditLimit" className="form-control shadow-none" value={form.creditLimit} onChange={handleChange} /></div>
                   </div>
                 </div>
               </div>

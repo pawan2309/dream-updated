@@ -2,7 +2,7 @@ import Header from '../../../components/Header'
 
 export default function EditStack() {
   return (
-    <div className="min-h-dvh bg-white relative pt-[60px]">
+    <div className="min-h-dvh bg-white relative pt-[72px]">
       <Header />
       <div className="flex-1 p-4">
         <div className="max-w-4xl mx-auto">

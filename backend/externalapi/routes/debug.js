@@ -481,5 +481,179 @@ router.get('/test-db-query', async (req, res) => {
   }
 });
 
+// Test bet table status (unprotected for debugging)
+router.get('/bet-table-status', async (req, res) => {
+  try {
+    console.log('🔍 Debug: Checking bet table status...');
+    
+    // Check if bet table exists
+    const tableExists = await database.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'bet'
+      );
+    `);
+    
+    if (!tableExists.rows[0].exists) {
+      return res.json({
+        success: false,
+        message: 'Bet table does not exist yet',
+        tableExists: false
+      });
+    }
+    
+    // Check table structure
+    const structure = await database.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns 
+      WHERE table_name = 'bet' 
+      ORDER BY ordinal_position
+    `);
+    
+    // Count total bets
+    const betCount = await database.query(`
+      SELECT COUNT(*) as total_bets FROM public."bet"
+    `);
+    
+    // Get sample bets (first 5)
+    const sampleBets = await database.query(`
+      SELECT * FROM public."bet" ORDER BY "createdAt" DESC LIMIT 5
+    `);
+    
+    // Check if ledger table exists
+    const ledgerExists = await database.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'ledger'
+      );
+    `);
+    
+    console.log(`✅ Bet table exists with ${betCount.rows[0].total_bets} bets`);
+    
+    res.json({
+      success: true,
+      tableExists: true,
+      tableStructure: structure.rows,
+      totalBets: betCount.rows[0].total_bets,
+      sampleBets: sampleBets.rows,
+      ledgerExists: ledgerExists.rows[0].exists,
+      message: `Found ${betCount.rows[0].total_bets} bets in database`
+    });
+    
+  } catch (error) {
+    console.error('❌ Error checking bet table:', error.message);
+    res.status(500).json({
+      success: false,
+      message: `Error checking bet table: ${error.message}`,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /debug/db
+ * Public endpoint to test database connectivity (no auth required)
+ */
+router.get('/db', async (req, res) => {
+  try {
+    logger.info(`🔍 [DEBUG] Testing database connectivity...`);
+    
+    // Test basic database connection
+    let dbStatus = 'unknown';
+    let tableStatus = 'unknown';
+    let userCount = 0;
+    let matchCount = 0;
+    let betCount = 0;
+    
+    try {
+      // Test if we can query the database
+      const result = await database.query('SELECT NOW() as current_time');
+      dbStatus = 'connected';
+      logger.info(`✅ [DEBUG] Database connection test successful`);
+      
+      // Check if User table exists and has data
+      try {
+        const userResult = await database.query('SELECT COUNT(*) as count FROM "User"');
+        userCount = parseInt(userResult.rows[0].count);
+        logger.info(`✅ [DEBUG] User table accessible with ${userCount} users`);
+      } catch (userError) {
+        logger.error(`❌ [DEBUG] User table error:`, userError.message);
+        tableStatus = `User table error: ${userError.message}`;
+      }
+      
+      // Check if Match table exists and has data
+      try {
+        const matchResult = await database.query('SELECT COUNT(*) as count FROM "Match"');
+        matchCount = parseInt(matchResult.rows[0].count);
+        logger.info(`✅ [DEBUG] Match table accessible with ${matchCount} matches`);
+      } catch (matchError) {
+        logger.error(`❌ [DEBUG] Match table error:`, matchError.message);
+        tableStatus = `Match table error: ${matchError.message}`;
+      }
+      
+      // Check if Bet table exists and has data
+      try {
+        const betResult = await database.query('SELECT COUNT(*) as count FROM "Bet"');
+        betCount = parseInt(betResult.rows[0].count);
+        logger.info(`✅ [DEBUG] Bet table accessible with ${betCount} bets`);
+      } catch (betError) {
+        logger.error(`❌ [DEBUG] Bet table error:`, betError.message);
+        tableStatus = `Bet table error: ${betError.message}`;
+      }
+      
+    } catch (dbError) {
+      dbStatus = `connection failed: ${dbError.message}`;
+      logger.error(`❌ [DEBUG] Database connection failed:`, dbError.message);
+    }
+    
+    res.json({
+      success: true,
+      debug: {
+        database: {
+          status: dbStatus,
+          timestamp: new Date().toISOString()
+        },
+        tables: {
+          user: {
+            exists: userCount >= 0,
+            count: userCount
+          },
+          match: {
+            exists: matchCount >= 0,
+            count: matchCount
+          },
+          bet: {
+            exists: betCount >= 0,
+            count: betCount
+          }
+        },
+        message: `Database status: ${dbStatus}`
+      }
+    });
+    
+  } catch (error) {
+    logger.error(`❌ [DEBUG] Error in debug endpoint:`, error.message);
+    res.status(500).json({
+      success: false,
+      message: `Debug endpoint error: ${error.message}`,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /debug/health
+ * Basic health check endpoint
+ */
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Debug service is running',
+    timestamp: new Date().toISOString(),
+    status: 'healthy'
+  });
+});
 
 module.exports = router;

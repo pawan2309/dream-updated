@@ -25,9 +25,8 @@ router.get('/:userId', jwtAuth(), async (req, res) => {
       status: { in: ['WON', 'LOST'] }
     });
 
-    // Get user's current balance and credit limit
+    // Get user's current credit limit
     const user = await database.findOne('User', { id: userId });
-    const currentBalance = user.balance || 0;
     const creditLimit = user.creditLimit || 0;
 
     // Calculate ledger summary (exactly like the frontend image)
@@ -47,8 +46,8 @@ router.get('/:userId', jwtAuth(), async (req, res) => {
         won: bet.status === 'WON' ? bet.wonAmount : 0,
         lost: bet.status === 'LOST' ? bet.lostAmount : 0,
         balance: bet.status === 'WON' ? 
-          (currentBalance + bet.wonAmount) : 
-          (currentBalance - bet.lostAmount),
+          bet.wonAmount : 
+          -bet.lostAmount,
         matchId: bet.matchId,
         betId: bet.id,
         settledAt: bet.settledAt,
@@ -63,13 +62,13 @@ router.get('/:userId', jwtAuth(), async (req, res) => {
     ledgerEntries.sort((a, b) => new Date(b.settledAt) - new Date(a.settledAt));
 
     // Calculate running balance for each entry
-    let runningBalance = currentBalance;
+    let runningBalance = 0;
     for (let i = ledgerEntries.length - 1; i >= 0; i--) {
       const entry = ledgerEntries[i];
       if (entry.won > 0) {
-        runningBalance -= entry.won;
+        runningBalance += entry.won;
       } else if (entry.lost > 0) {
-        runningBalance += entry.lost;
+        runningBalance -= entry.lost;
       }
       entry.balance = runningBalance;
     }
@@ -83,7 +82,6 @@ router.get('/:userId', jwtAuth(), async (req, res) => {
           credit: totalCredit,
           debit: totalDebit,
           profitLoss: netProfit,
-          currentBalance: currentBalance,
           creditLimit: creditLimit
         },
         
@@ -137,9 +135,8 @@ router.get('/:userId/summary', jwtAuth(), async (req, res) => {
       status: { in: ['WON', 'LOST'] }
     });
 
-    // Get user's current balance and credit limit
+    // Get user's current credit limit
     const user = await database.findOne('User', { id: userId });
-    const currentBalance = user.balance || 0;
     const creditLimit = user.creditLimit || 0;
 
     // Calculate summary
@@ -153,7 +150,6 @@ router.get('/:userId/summary', jwtAuth(), async (req, res) => {
         credit: totalCredit,
         debit: totalDebit,
         profitLoss: netProfit,
-        currentBalance: currentBalance,
         creditLimit: creditLimit,
         totalBets: settledBets.length,
         wonBets: settledBets.filter(b => b.status === 'WON').length,

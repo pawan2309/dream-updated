@@ -53,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         username: user.username,
         role: user.role,
         code: user.code,
-        balance: user.balance,
+
         creditLimit: user.creditLimit,
         exposure: user.exposure,
         isActive: user.isActive,

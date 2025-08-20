@@ -54,11 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    console.log('✅ JWT_SECRET is configured');
-
     // Find user by client code (username field in database)
-    console.log('🔍 Searching for user with username:', sanitizedUsername);
-    console.log('🔍 Database URL:', process.env.DATABASE_URL || 'Using default');
     
     let user;
     try {
@@ -75,7 +71,6 @@ export async function POST(request: NextRequest) {
           name: true,
           code: true,
           role: true,
-          balance: true,
           creditLimit: true,
           exposure: true,
           contactno: true,
@@ -83,33 +78,15 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      console.log('🔍 Database query result:', user);
-
       if (!user) {
         // Don't reveal whether user exists or not
-        console.log('❌ No user found with username:', sanitizedUsername);
         return NextResponse.json(
           { error: 'Invalid credentials' },
           { status: 401 }
         );
       }
 
-      // Debug: Log user data to see what's in the database
-      console.log('🔍 User found in database:', {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        code: user.code,
-        role: user.role,
-        balance: user.balance,
-        balanceType: typeof user.balance,
-        creditLimit: user.creditLimit,
-        creditLimitType: typeof user.creditLimit,
-        exposure: user.exposure,
-        exposureType: typeof user.exposure,
-        hasPassword: !!user.password,
-        passwordLength: user.password?.length || 0
-      });
+
     } catch (dbError) {
       console.error('❌ Database query error:', dbError);
       return NextResponse.json(
@@ -152,28 +129,14 @@ export async function POST(request: NextRequest) {
         name: user.name || user.username || 'User',
         username: user.username,
         role: user.role,
-        balance: user.balance || 0,
+
         creditLimit: user.creditLimit || 0,
         exposure: user.exposure || 0,
         contactno: user.contactno || 'N/A',
         isActive: user.isActive
       };
 
-      // Debug: Log what's being sent to the client
-      console.log('📤 User data being sent to client:', userData);
-      console.log('📊 Data validation:', {
-        originalBalance: user.balance,
-        originalCreditLimit: user.creditLimit,
-        originalExposure: user.exposure,
-        finalBalance: userData.balance,
-        finalCreditLimit: userData.creditLimit,
-        finalExposure: userData.exposure,
-        usedFallbacks: {
-          balance: user.balance === null || user.balance === undefined,
-          creditLimit: user.creditLimit === null || user.creditLimit === undefined,
-          exposure: user.exposure === null || user.exposure === undefined
-        }
-      });
+
 
       // Create response with cookie
       const response = NextResponse.json({ 

@@ -137,16 +137,15 @@ class BetValidationService {
   }
 
   /**
-   * Validate user balance and exposure for bet
+   * Validate user stakeable amount for bet
    */
-  static async validateUserBalance(userId, stake, betType, odds) {
+  static async validateUserStakeable(userId, stake, betType, odds) {
     try {
       const user = await database.findOne('User', { id: userId });
       if (!user) {
         return { valid: false, error: 'User not found' };
       }
 
-      const currentBalance = user.balance || 0;
       const currentExposure = user.exposure || 0;
       const creditLimit = user.creditLimit || 0;
 
@@ -158,35 +157,24 @@ class BetValidationService {
         betExposure = stake * (odds - 1);
       }
 
-      // Check if user has enough balance for stake
-      if (stake > currentBalance) {
+      // Check if user has enough credit limit for stake (creditLimit is stakeable amount)
+      if (stake > creditLimit) {
         return { 
           valid: false, 
-          error: 'Insufficient balance',
-          details: `Required: ${stake}, Available: ${currentBalance}`
-        };
-      }
-
-      // Check if total exposure would exceed credit limit
-      const totalExposure = currentExposure + betExposure;
-      if (totalExposure > creditLimit) {
-        return { 
-          valid: false, 
-          error: 'Exposure limit exceeded',
-          details: `Total exposure: ${totalExposure}, Limit: ${creditLimit}`
+          error: 'Insufficient amount',
+          details: `Required: ${stake}, Available stakeable: ${creditLimit}`
         };
       }
 
       return { 
         valid: true, 
-        currentBalance,
         currentExposure,
         betExposure,
-        totalExposure
+        creditLimit
       };
     } catch (error) {
-      logger.error('Error validating user balance:', error);
-      return { valid: false, error: 'Failed to validate user balance' };
+      logger.error('Error validating user stakeable amount:', error);
+      return { valid: false, error: 'Failed to validate user stakeable amount' };
     }
   }
 
@@ -233,12 +221,13 @@ class BetValidationService {
       // Get user-specific limits if they exist
       const user = await database.findOne('User', { id: userId });
       if (user) {
-        const userMaxStake = user.maxStake || maxStake;
+        // Use creditLimit as maximum stakeable amount, fallback to market max
+        const userMaxStake = Math.min(user.creditLimit || 0, maxStake);
         if (stake > userMaxStake) {
           return { 
             valid: false, 
             error: 'Stake above user limit',
-            details: `User maximum stake: ${userMaxStake}`
+            details: `User maximum stakeable: ${userMaxStake}`
           };
         }
       }
@@ -355,10 +344,10 @@ class BetValidationService {
         return userValidation;
       }
 
-      // 4. Validate user balance and exposure
-      const balanceValidation = await this.validateUserBalance(userId, stake, betType, odds);
-      if (!balanceValidation.valid) {
-        return balanceValidation;
+      // 4. Validate user stakeable amount
+      const stakeableValidation = await this.validateUserStakeable(userId, stake, betType, odds);
+      if (!stakeableValidation.valid) {
+        return stakeableValidation;
       }
 
       // 5. Validate stake limits
@@ -384,7 +373,7 @@ class BetValidationService {
         valid: true,
         user: userValidation.user,
         selection: oddsValidation.selection,
-        balanceInfo: balanceValidation,
+        stakeableInfo: stakeableValidation,
         stakeInfo: stakeValidation
       };
 

@@ -205,8 +205,14 @@ class ExternalApiServer {
         this.app.use(refreshRoutes);
         this.app.use(adminRawRoutes);
 
-        // Protected bets routes (require authentication)
-        this.app.use('/api/bets', require('./routes/bets'));
+        // Protected bet routes (require authentication)
+        this.app.use('/api/bet', require('./routes/bet'));
+
+        // Protected user routes (require authentication)
+        this.app.use('/api/user', require('./routes/user'));
+
+        // Protected settlement routes (require authentication)
+        this.app.use('/api/settle', require('./routes/settle'));
 
         // Protected matches routes (require authentication)
         this.app.use('/api/matches', require('./routes/matches'));

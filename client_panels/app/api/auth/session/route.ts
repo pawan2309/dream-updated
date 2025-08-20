@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
           name: true,
           code: true,
           role: true,
-          balance: true,
+
           creditLimit: true,
           exposure: true,
           contactno: true,
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
         name: user.name || user.username || 'User',
         username: user.username,
         role: user.role,
-        balance: user.balance || 0,
+
         creditLimit: user.creditLimit || 0,
         exposure: user.exposure || 0,
         contactno: user.contactno || 'N/A',

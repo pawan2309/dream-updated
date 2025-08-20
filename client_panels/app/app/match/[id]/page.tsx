@@ -11,6 +11,7 @@ import HLSVideoPlayer from '../../../../components/HLSVideoPlayer';
 import { websocketService } from '../../../../lib/websocketService';
 import SuspendedOverlay from '../../../../components/SuspendedOverlay';
 import BetSlip from '../../../../components/BetSlip';
+import { Toast } from '../../../../components/Toast';
 
 import { useAuth } from '../../../../lib/hooks/useAuth';
 import { useOptimizedMatchUpdates } from '../../../../lib/hooks/useOptimizedMatchUpdates';
@@ -76,6 +77,56 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
   // Bet placement state
   const [selectedBet, setSelectedBet] = useState<BetSlipData | null>(null);
   const [betSlipOpen, setBetSlipOpen] = useState(false);
+
+  // Function to handle bet confirmation (called after bet is already placed in BetSlip)
+  const handleBetConfirm = async (stake: number): Promise<boolean> => {
+    if (!selectedBet || !user) {
+      console.error('❌ [BET] No bet selected or user not authenticated');
+      return false;
+    }
+
+    try {
+      console.log('🔍 [BET] Bet already placed in BetSlip, updating UI...');
+      
+      // Add bet to local state (bet was already placed in BetSlip)
+      const newBet: Bet = {
+        ...selectedBet,
+        stake: stake
+      };
+      setBets(prev => [...prev, newBet]);
+      
+      // Reset bet slip
+      setSelectedBet(null);
+      setBetSlipOpen(false);
+      
+      return true;
+    } catch (error) {
+      console.error('❌ [BET] Error updating UI after bet placement:', error);
+      return false;
+    }
+  };
+
+  // Function to handle odds selection for betting
+  const handleOddsClick = (market: BettingMarket, selection: any, type: 'back' | 'lay') => {
+    if (!user) {
+      console.log('❌ [BET] User not authenticated, cannot place bet');
+      return;
+    }
+
+    const betData: BetSlipData = {
+      matchId: cleanMatchId,
+      marketId: market.marketId || market.id,
+      selectionId: selection.id,
+      selectionName: selection.name,
+      odds: selection.odds,
+      type: type,
+      marketName: market.name
+    };
+
+    console.log('🔍 [BET] Odds clicked, opening bet slip:', betData);
+    setSelectedBet(betData);
+    setBetSlipOpen(true);
+  };
   
 
 
@@ -270,7 +321,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
             date: matchFixture.date || new Date().toLocaleDateString(),
             time: matchFixture.time || new Date().toLocaleTimeString(),
             status: getMatchStatus(matchFixture),
-            team1: matchFixture.team1 || matchFixture.brunners?.[0] || 'Team 1',
+            cd: matchFixture.team1 || matchFixture.brunners?.[0] || 'Team 1',
             team2: matchFixture.team2 || matchFixture.brunners?.[1] || 'Team 2',
             score1: matchFixture.score1 || '0-0',
             score2: matchFixture.score2 || '0-0',
@@ -420,17 +471,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
     setBetSlipOpen(true);
   };
 
-  // Function to handle bet confirmation (placeholder for now)
-  const handleBetConfirm = async (betData: BetSlipData) => {
-    try {
-      console.log('🔍 [BET] Bet slip data received:', betData);
-      // TODO: Implement bet placement logic
-      setBetSlipOpen(false);
-      setSelectedBet(null);
-    } catch (error) {
-      console.error('❌ [BET] Error handling bet slip:', error);
-    }
-  };
+
 
   if (loading) {
     return (
@@ -855,7 +896,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                    bet={selectedBet}
                    onConfirm={handleBetConfirm}
                    onClose={() => setSelectedBet(null)}
-                   userBalance={1000}
+                   userBalance={user?.creditLimit || 0}
                    isLoading={false}
                  />
               </div>

@@ -207,6 +207,7 @@ export default function BettingLayout() {
       setBets(bets.filter((_, index) => index !== existingBetIndex));
     } else {
       const newBet: Bet = {
+        matchId: cleanMatchId,
         marketId: market.id,
         selectionId: selection.id,
         selectionName: selection.name,

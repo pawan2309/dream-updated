@@ -16,6 +16,7 @@ export default function Header() {
   const { user, logout, authenticated } = useAuth()
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+
   // Debug logging to see what data we're getting
   useEffect(() => {
     console.log('🔍 Header component received user data:', {
@@ -25,16 +26,13 @@ export default function Header() {
       userUsername: user?.username,
       userCode: user?.code,
       userCreditLimit: user?.creditLimit,
-      userBalance: user?.balance,
       userExposure: user?.exposure,
       hasName: !!user?.name,
       hasUsername: !!user?.username,
       hasCode: !!user?.code,
       hasCreditLimit: !!user?.creditLimit,
-      hasBalance: !!user?.balance,
       hasExposure: !!user?.exposure,
       dataTypes: {
-        balance: typeof user?.balance,
         creditLimit: typeof user?.creditLimit,
         exposure: typeof user?.exposure
       }
@@ -61,17 +59,17 @@ export default function Header() {
         if (data.success) {
           setLiveBalance(data.balance || 0)
         } else {
-          // Fallback to user balance from auth state
-          setLiveBalance(user?.balance || 0)
+          // Fallback to user credit limit from auth state
+          setLiveBalance(user?.creditLimit || 0)
         }
       } else {
-        // Fallback to user balance from auth state
-        setLiveBalance(user?.balance || 0)
+        // Fallback to user credit limit from auth state
+        setLiveBalance(user?.creditLimit || 0)
       }
     } catch (error) {
       console.error('Error fetching live balance:', error)
-      // Fallback to user balance from auth state
-      setLiveBalance(user?.balance || 0)
+      // Fallback to user credit limit from auth state
+      setLiveBalance(user?.creditLimit || 0)
     } finally {
       setIsBalanceLoading(false)
     }
@@ -130,10 +128,10 @@ export default function Header() {
 
   // Update balance when user changes
   useEffect(() => {
-    if (user?.balance !== undefined) {
-      setLiveBalance(user.balance)
+    if (user?.creditLimit !== undefined) {
+      setLiveBalance(user.creditLimit)
     }
-  }, [user?.balance])
+  }, [user?.creditLimit])
 
   // Update exposure when user changes
   useEffect(() => {
@@ -141,6 +139,8 @@ export default function Header() {
       setExposure(user.exposure)
     }
   }, [user?.exposure])
+
+
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -267,7 +267,7 @@ export default function Header() {
       </div>
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 p-4 flex items-center justify-between h-[60px] border-b border-gray-200" style={{backgroundColor: '#1e3a8a'}}>
+      <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between h-[60px] border-b border-gray-200" style={{backgroundColor: '#1e3a8a'}}>
         {/* Left Section - Logo and Menu */}
         <div className="flex items-center gap-3">
           <div 

@@ -394,7 +394,7 @@ export const TOP_LEVEL_ROLES: Role[] = ['SUB_OWNER'];
 ### Environment Variables
 ```env
 # Database
-DATABASE_URL="postgresql://user:password@localhost:5432/betting"
+DATABASE_URL="postgresql://postgres:8079@localhost:5432/betting_db"
 
 # JWT
 JWT_SECRET="your-secret-key"

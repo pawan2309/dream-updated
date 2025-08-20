@@ -184,7 +184,7 @@ export default function Casino() {
   }
 
   return (
-    <div className="min-h-dvh bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative pt-[60px]">
+            <div className="min-h-dvh bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative pt-[72px]">
       <Header />
       <div className="flex-1 p-2">
                  <div className="max-w-4xl mx-auto">

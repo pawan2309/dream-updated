@@ -117,18 +117,17 @@ async function createTransaction(req: NextApiRequest, res: NextApiResponse, curr
       return res.status(403).json({ success: false, message: 'Insufficient permissions' });
     }
 
-    // Get user's current balance
+        // Get user's current credit limit
     const user = await prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { balance: true }
+      select: { creditLimit: true }
     });
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Calculate new balance and ledger entries
-    let newBalance = user.balance;
+    // Calculate ledger entries
     let debit = 0;
     let credit = 0;
     
@@ -136,26 +135,16 @@ async function createTransaction(req: NextApiRequest, res: NextApiResponse, curr
       case 'DEPOSIT':
       case 'WIN':
         credit = amount;
-        newBalance += amount;
         break;
       case 'WITHDRAWAL':
       case 'LOSS':
-        if (newBalance < amount) {
-          return res.status(400).json({ success: false, message: 'Insufficient balance' });
-        }
         debit = amount;
-        newBalance -= amount;
         break;
       case 'ADJUSTMENT':
         if (amount > 0) {
           credit = amount;
-          newBalance += amount;
         } else {
           debit = Math.abs(amount);
-          if (newBalance < Math.abs(amount)) {
-            return res.status(400).json({ success: false, message: 'Insufficient balance' });
-          }
-          newBalance += amount; // amount is negative here
         }
         break;
     }
@@ -184,11 +173,7 @@ async function createTransaction(req: NextApiRequest, res: NextApiResponse, curr
     //   }
     // });
 
-    // Update user balance
-    await prisma.user.update({
-      where: { id: targetUserId },
-      data: { balance: newBalance }
-    });
+    // No balance update needed
 
     return res.status(201).json({
       success: true,

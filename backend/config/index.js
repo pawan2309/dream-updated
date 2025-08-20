@@ -21,7 +21,7 @@ const config = {
   redisDb: number(process.env.REDIS_DB, 0),
 
   // Postgres
-  pgUrl: process.env.PG_URL || process.env.DATABASE_URL || 'postgresql://postgres:8079@localhost:5432/betting_db',
+  pgUrl: process.env.PG_URL || process.env.DATABASE_URL,
 
   // JWT
   jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',

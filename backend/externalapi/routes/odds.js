@@ -432,8 +432,10 @@ function transformExternalOdds(externalData, matchId) {
         
         const transformedMarket = {
           id: market.mname?.toLowerCase().replace(/[^a-z0-9]/g, '_') || `market_${index}`,
+          marketId: market.mname?.toLowerCase().replace(/[^a-z0-9]/g, '_') || `market_${index}`,
           name: market.mname || `Market ${index + 1}`,
           type: getMarketType(market.mname),
+          gtype: getMarketGType(market.mname),
           minStake: market.min || 100,
           maxStake: market.max || 500000,
           status: market.status === 'OPEN' ? 'active' : 'suspended',
@@ -635,6 +637,37 @@ function getMarketType(marketName) {
   
   logger.info(`🏷️ [MARKET_TYPE] No specific type detected, defaulting to 'custom'`);
   return 'custom';
+}
+
+/**
+ * Determine market gtype (fancy, match_odds, session) based on market name
+ */
+function getMarketGType(marketName) {
+  logger.info(`🏷️ [MARKET_GTYPE] Determining market gtype for: ${marketName}`);
+  
+  if (!marketName) {
+    logger.warn(`🏷️ [MARKET_GTYPE] No market name provided, defaulting to 'match_odds'`);
+    return 'match_odds';
+  }
+  
+  const name = marketName.toLowerCase();
+  logger.info(`🏷️ [MARKET_GTYPE] Normalized market name: ${name}`);
+  
+  if (name.includes('fancy') || name.includes('casino') || name.includes('over') || name.includes('under')) {
+    logger.info(`🏷️ [MARKET_GTYPE] Detected 'fancy' type`);
+    return 'fancy';
+  }
+  if (name.includes('session') || name.includes('inning') || name.includes('over_by_over')) {
+    logger.info(`🏷️ [MARKET_GTYPE] Detected 'session' type`);
+    return 'session';
+  }
+  if (name.includes('match') || name.includes('winner') || name.includes('tied')) {
+    logger.info(`🏷️ [MARKET_GTYPE] Detected 'match_odds' type`);
+    return 'match_odds';
+  }
+  
+  logger.info(`🏷️ [MARKET_GTYPE] No specific gtype detected, defaulting to 'match_odds'`);
+  return 'match_odds';
 }
 
 module.exports = router;

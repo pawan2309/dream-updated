@@ -112,7 +112,7 @@ export default function InPlay() {
   }, []);
 
   return (
-    <div className="min-h-dvh bg-gray-50 relative pt-[60px]">
+    <div className="min-h-dvh bg-gray-50 relative pt-[72px]">
       <Header />
       <div className="flex-1 p-4">
         <div className="max-w-6xl mx-auto">

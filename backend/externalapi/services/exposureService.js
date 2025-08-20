@@ -82,23 +82,18 @@ class ExposureService {
         throw new Error('User not found');
       }
 
-      const currentBalance = user.balance || 0;
       const currentExposure = user.exposure || 0;
 
-      // Calculate new values
-      const newBalance = currentBalance - stake;
+      // Calculate new exposure
       const newExposure = currentExposure + betExposure;
 
-      // Update user
+      // Update user exposure only
       await db.update('User', { id: userId }, {
-        balance: newBalance,
         exposure: newExposure,
         updatedAt: new Date()
       });
 
       return {
-        previousBalance: currentBalance,
-        newBalance: newBalance,
         previousExposure: currentExposure,
         newExposure: newExposure,
         stake: stake,
@@ -128,23 +123,18 @@ class ExposureService {
         throw new Error('User not found');
       }
 
-      const currentBalance = user.balance || 0;
       const currentExposure = user.exposure || 0;
 
-      // Calculate new values
-      const newBalance = currentBalance + stake;
+      // Calculate new exposure
       const newExposure = Math.max(0, currentExposure - betExposure);
 
-      // Update user
+      // Update user exposure only
       await db.update('User', { id: userId }, {
-        balance: newBalance,
         exposure: newExposure,
         updatedAt: new Date()
       });
 
       return {
-        previousBalance: currentBalance,
-        newBalance: newBalance,
         previousExposure: currentExposure,
         newExposure: newExposure,
         refundedStake: stake,
@@ -200,31 +190,29 @@ class ExposureService {
   }
 
   /**
-   * Check if user has sufficient balance for new bet
+   * Check if user has sufficient credit limit for new bet
    * @param {string} userId - User ID
    * @param {number} stake - Required stake
    * @param {number} additionalExposure - Additional exposure from new bet
-   * @returns {Object} Balance sufficiency check result
+   * @returns {Object} Credit sufficiency check result
    */
-  static async checkBalanceSufficiency(userId, stake, additionalExposure) {
+  static async checkCreditSufficiency(userId, stake, additionalExposure) {
     try {
       const user = await database.findOne('User', { id: userId });
       if (!user) {
         throw new Error('User not found');
       }
 
-      const currentBalance = user.balance || 0;
       const currentExposure = user.exposure || 0;
       const creditLimit = user.creditLimit || 0;
 
       const totalExposure = currentExposure + additionalExposure;
-      const hasSufficientBalance = currentBalance >= stake;
       const hasSufficientCredit = totalExposure <= creditLimit;
+      const hasSufficientStakeable = creditLimit >= stake;
 
       return {
-        hasSufficientBalance,
+        hasSufficientStakeable,
         hasSufficientCredit,
-        currentBalance,
         currentExposure,
         totalExposure,
         creditLimit,
@@ -232,7 +220,7 @@ class ExposureService {
         additionalExposure
       };
     } catch (error) {
-      logger.error('Error checking balance sufficiency:', error);
+      logger.error('Error checking credit sufficiency:', error);
       throw error;
     }
   }
@@ -250,7 +238,6 @@ class ExposureService {
       }
 
       const totalExposure = await this.calculateTotalUserExposure(userId);
-      const currentBalance = user.balance || 0;
       const creditLimit = user.creditLimit || 0;
 
       const exposureUtilization = creditLimit > 0 ? (totalExposure.totalExposure / creditLimit) * 100 : 0;
@@ -258,7 +245,6 @@ class ExposureService {
 
       return {
         userId,
-        currentBalance,
         creditLimit,
         totalExposure: totalExposure.totalExposure,
         exposureUtilization: Math.round(exposureUtilization * 100) / 100,

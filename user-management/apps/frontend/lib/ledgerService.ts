@@ -34,11 +34,10 @@ export class LedgerService {
    * Record a user's win/loss for a match
    */
   static async recordPNL(userId: string, matchId: string, amount: number, isWin: boolean) {
-    // Update user balance
+    // No balance update needed
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new Error('User not found');
-    const newBalance = user.balance + amount;
-    await prisma.user.update({ where: { id: userId }, data: { balance: newBalance } });
+    
     // Create ledger entry
     return prisma.ledger.create({
       data: {
@@ -47,7 +46,6 @@ export class LedgerService {
         collection: isWin ? 'WIN' : 'LOSS',
         credit: isWin ? amount : 0,
         debit: isWin ? 0 : -amount,
-        balanceAfter: newBalance,
         type: isWin ? LedgerType.WIN : LedgerType.LOSS,
         remark: isWin ? 'Bet Win' : 'Bet Loss',
         transactionType: 'BET',
@@ -81,18 +79,13 @@ export class LedgerService {
             collection: direction > 0 ? 'PNL_CREDIT' : 'PNL_DEBIT',
             credit: direction > 0 ? shareAmount : 0,
             debit: direction < 0 ? shareAmount : 0,
-            balanceAfter: parent.balance + (direction > 0 ? shareAmount : -shareAmount),
             type: direction > 0 ? LedgerType.PNL_CREDIT : LedgerType.PNL_DEBIT,
             remark: direction > 0 ? 'Profit from downline' : 'Loss to downline',
             transactionType: 'P&L',
             referenceId: matchId,
           } as Prisma.LedgerUncheckedCreateInput,
         });
-        // Update parent balance
-        await prisma.user.update({
-          where: { id: parent.id },
-          data: { balance: parent.balance + (direction > 0 ? shareAmount : -shareAmount) },
-        });
+        // No balance update needed
       }
       // Move up
       remaining -= shareAmount;
@@ -109,17 +102,13 @@ export class LedgerService {
           collection: direction > 0 ? 'PNL_CREDIT' : 'PNL_DEBIT',
           credit: direction > 0 ? remaining : 0,
           debit: direction < 0 ? remaining : 0,
-          balanceAfter: currentUser.balance + (direction > 0 ? remaining : -remaining),
           type: direction > 0 ? LedgerType.PNL_CREDIT : LedgerType.PNL_DEBIT,
           remark: 'Topmost upline allocation',
           transactionType: 'P&L',
           referenceId: matchId,
         } as Prisma.LedgerUncheckedCreateInput,
       });
-      await prisma.user.update({
-        where: { id: currentUser.id },
-        data: { balance: currentUser.balance + (direction > 0 ? remaining : -remaining) },
-      });
+      // No balance update needed
     }
   }
 
@@ -129,22 +118,8 @@ export class LedgerService {
   static async settleUserBalance(userId: string) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new Error('User not found');
-    // Settle balance to zero
-    const amount = user.balance;
-    if (amount === 0) return null;
-    await prisma.user.update({ where: { id: userId }, data: { balance: 0 } });
-    return prisma.ledger.create({
-      data: {
-        userId,
-        collection: 'SETTLEMENT',
-        credit: amount > 0 ? 0 : -amount,
-        debit: amount > 0 ? amount : 0,
-        balanceAfter: 0,
-        type: LedgerType.SETTLEMENT,
-        remark: 'Balance settled',
-        transactionType: 'SETTLEMENT',
-      } as Prisma.LedgerUncheckedCreateInput,
-    });
+    // No balance to settle
+    return null;
   }
 
   /**

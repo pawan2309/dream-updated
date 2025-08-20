@@ -111,7 +111,7 @@ class OddsService {
         throw new Error('Authentication token not found');
       }
 
-      const response = await fetch(`${this.baseUrl}/api/bet`, {
+      const response = await fetch(`/api/bet`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,7 +151,7 @@ class OddsService {
         throw new Error('Authentication token not found');
       }
 
-      const response = await fetch(`${this.baseUrl}/api/bet/user`, {
+      const response = await fetch(`/api/bet/user`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -252,4 +252,13 @@ a {
   opacity: 0;
   transform: translateY(-10px);
   transition: opacity 200ms ease-in, transform 200ms ease-in;
+}
+
+/* Header spacing utilities */
+.header-spacing {
+  padding-top: 72px; /* 60px header height + 12px padding */
+}
+
+.header-spacing-sm {
+  padding-top: 60px; /* For smaller headers */
 } 
