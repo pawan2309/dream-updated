@@ -1,5 +1,5 @@
-// Import Prisma client directly like other client files do
-import { PrismaClient } from '@prisma/client';
+// Import Prisma client from the root node_modules (shared across the monorepo)
+import { PrismaClient } from '../../node_modules/.prisma/client';
 
 // Create a global Prisma client instance
 const globalForPrisma = globalThis as unknown as {

@@ -13,9 +13,6 @@ const nextConfig = {
     ],
   },
   transpilePackages: ['user-management-frontend'],
-  experimental: {
-    transpilePackages: ['user-management-frontend']
-  },
   webpack: (config, { isServer }) => {
     // Handle external TypeScript files
     config.module.rules.push({

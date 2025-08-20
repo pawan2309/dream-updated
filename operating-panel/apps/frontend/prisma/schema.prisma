@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(uuid())
+  username            String               @unique
+  password            String
+
+  role                Role                 @default(USER)
+  parentId            String?
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  name                String?
+  code                String?
+  contactno           String?
+  mobileshare         Float                @default(100)
+  reference           String?
+  creditLimit         Float                @default(0)
+  exposure            Float                @default(0)
+  casinoStatus        Boolean?
+  bets                Bet[]
+  ledger              Ledger[]
+  loginSessions       LoginSession[]
+  parent              User?                @relation("UserHierarchy", fields: [parentId], references: [id])
+  children            User[]               @relation("UserHierarchy")
+  UserCommissionShare UserCommissionShare?
+}
+
+model Match {
+  id          String      @id @default(uuid())
+  matchId     String      @unique // This will store the beventId from API
+  matchName   String      // This will store the "ename" from API
+  sport       String      @default("cricket") // Sport type, default to cricket
+  bevent      String      // This will store the "bvent" from API
+  bmarket     String      // This will store the "bmarket" from API
+  tournament  String      // This will store the "cname" from API
+  status      MatchStatus @default(UPCOMING)
+  startTime   DateTime?   // This will store the "stime" from API
+  isLive      Boolean     @default(false) // Calculated based on startTime
+  isActive    Boolean     @default(true) // Controlled by control panel
+  winner      String?     // Controlled by control panel later
+  settledAt   DateTime?   // Controlled by control panel later
+  createdAt   DateTime    @default(now())
+  lastUpdated DateTime    @updatedAt
+  isDeleted   Boolean     @default(false)
+  teams       Json?       // Store team information if needed
+  result      String?     // Store match result
+  bets        Bet[]
+  odds        MatchOdds[]
+
+  @@index([bmarket])
+  @@index([bevent])
+  @@index([status])
+  @@index([startTime])
+  @@index([isLive])
+  @@index([isActive])
+}
+
+model MatchOdds {
+  id          String   @id @default(uuid())
+  matchId     String
+  marketId    String
+  marketName  String
+  gtype       String
+  status      String
+  oddsData    Json
+  lastUpdated DateTime @updatedAt
+  match       Match    @relation(fields: [matchId], references: [matchId])
+
+  @@index([marketId])
+  @@index([matchId])
+  @@index([status])
+}
+
+model Bet {
+  id         String    @id @default(uuid())
+  userId     String
+  matchId    String
+  marketId   String
+  selection  String
+  stake      Float
+  odds       Float
+  betType    String
+  status     BetStatus @default(PENDING)
+  profitLoss Float?
+  createdAt  DateTime  @default(now())
+  settledAt  DateTime?
+  match      Match     @relation(fields: [matchId], references: [matchId])
+  user       User      @relation(fields: [userId], references: [username])
+
+  @@index([userId])
+  @@index([matchId])
+  @@index([marketId])
+  @@index([status])
+}
+
+model Ledger {
+  id           String   @id @default(uuid())
+  userId       String
+  matchId      String?
+  marketId     String?
+  betId        String?
+  type         String
+  amount       Float
+
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [username])
+
+  @@index([userId])
+  @@index([matchId])
+  @@index([marketId])
+  @@index([betId])
+}
+
+model LoginSession {
+  id              String    @id @default(uuid())
+  userId          String
+  loginAt         DateTime  @default(now())
+  logoutAt        DateTime?
+  ipAddress       String?
+  userAgent       String?
+  deviceType      String?
+  location        String?
+  sessionDuration Int?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  user            User      @relation(fields: [userId], references: [username], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([loginAt])
+  @@index([isActive])
+}
+
+model UserCommissionShare {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  share                   Float    @default(0)
+  cshare                  Float    @default(0)
+  icshare                 Float    @default(0)
+  casinocommission        Float    @default(0)
+  matchcommission         Float    @default(0)
+  sessioncommission       Float    @default(0)
+  sessionCommission       Float?
+  session_commission_type String   @default("No Comm")
+  commissionType          String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime
+  available_share_percent Float    @default(0)
+  User                    User     @relation(fields: [userId], references: [username], onDelete: Cascade)
+}
+
+model CasinoTable {
+  id          Int             @id @default(autoincrement())
+  eventId     BigInt          @map("event_id")
+  name        String          @db.VarChar(50)
+  shortName   String          @map("short_name") @db.VarChar(20)
+  betStatus   CasinoBetStatus @default(OPEN) @map("bet_status")
+  minStake    Decimal         @default(0) @map("min_stake") @db.Decimal(10, 2)
+  maxStake    Decimal         @default(0) @map("max_stake") @db.Decimal(10, 2)
+  dataUrl     String?         @map("data_url")
+  resultUrl   String?         @map("result_url")
+  streamId    Int?            @map("stream_id")
+  lastUpdated DateTime        @default(now()) @updatedAt @map("last_updated")
+
+  @@index([betStatus], map: "idx_casino_tables_bet_status")
+  @@index([streamId], map: "idx_casino_tables_stream_id")
+  @@map("casino_tables")
+}
+
+enum Role {
+  ADMIN
+  SUPER_ADMIN
+  SUB_OWNER
+  SUB
+  MASTER
+  SUPER_AGENT
+  AGENT
+  USER
+  OWNER
+}
+
+enum MatchStatus {
+  UPCOMING
+  LIVE
+  CLOSED
+  COMPLETED
+  ABANDONED
+  CANCELED
+  OPEN
+  SUSPENDED
+  SETTLED
+}
+
+enum BetStatus {
+  PENDING
+  WON
+  LOST
+  CANCELED
+}
+
+enum CasinoBetStatus {
+  OPEN
+  CLOSED
+}
