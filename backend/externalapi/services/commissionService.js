@@ -112,12 +112,8 @@ class CommissionService {
         throw new Error('User not found');
       }
 
-      const currentBalance = user.balance || 0;
-      const newBalance = currentBalance - commissionAmount;
-
-      // Update user balance
+      // No balance update needed - only track commission
       await db.update('User', { id: userId }, {
-        balance: newBalance,
         updatedAt: new Date()
       });
 
@@ -128,7 +124,7 @@ class CommissionService {
         collection: 'COMMISSION',
         debit: commissionAmount,
         credit: 0,
-        balanceAfter: newBalance,
+
         type: 'COMMISSION',
         remark: `Commission deducted from winnings`,
         transactionType: 'COMMISSION',
@@ -139,9 +135,7 @@ class CommissionService {
 
       return {
         commissionApplied: true,
-        amount: commissionAmount,
-        previousBalance: currentBalance,
-        newBalance: newBalance
+        amount: commissionAmount
       };
     } catch (error) {
       logger.error('Error applying commission:', error);
@@ -286,9 +280,8 @@ class CommissionService {
 
       // If any remaining, assign to topmost upline
       if (remaining > 0.0001 && currentUser) {
-        const newTopBalance = currentUser.balance + (direction > 0 ? remaining : -remaining);
+        // No balance update needed for topmost upline
         await db.update('User', { id: currentUser.id }, {
-          balance: newTopBalance,
           updatedAt: new Date()
         });
 
@@ -300,7 +293,7 @@ class CommissionService {
           collection: direction > 0 ? 'PNL_CREDIT' : 'PNL_DEBIT',
           credit: direction > 0 ? remaining : 0,
           debit: direction < 0 ? remaining : 0,
-          balanceAfter: newTopBalance,
+
           type: direction > 0 ? 'PNL_CREDIT' : 'PNL_DEBIT',
           remark: 'Topmost upline allocation',
           transactionType: 'P&L',
@@ -314,7 +307,6 @@ class CommissionService {
           userId: currentUser.id,
           share: 100,
           amount: remaining,
-          newBalance: newTopBalance,
           isTopmost: true
         });
       }

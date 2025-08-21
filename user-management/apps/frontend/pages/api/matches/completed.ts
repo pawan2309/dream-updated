@@ -13,50 +13,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         isActive: true,
         isDeleted: false,
         status: {
-          in: ['COMPLETED', 'CANCELED', 'SETTLED']
+          in: ['COMPLETED', 'CANCELED', 'SETTLED', 'ABANDONED']
         }
       },
       select: {
         id: true,
-        title: true,
-        externalId: true,
+        matchId: true,
+        matchName: true,
+        sport: true,
+        bevent: true,
+        bmarket: true,
+        tournament: true,
         status: true,
         startTime: true,
+        isActive: true,
         teams: true,
-        matchName: true,
-        matchType: true,
-        tournament: true,
-        apiSource: true,
-        beventId: true,
-        bmarketId: true,
-        isCricket: true,
-        lastUpdated: true,
         winner: true,
         result: true,
         settledAt: true,
-        resultData: true
+        createdAt: true,
+        lastUpdated: true
       },
       orderBy: {
-        settledAt: 'desc' // Most recently completed first
+        lastUpdated: 'desc' // Most recently updated first
       }
     });
 
     // Transform the data to match the table structure
     const transformedMatches = completedMatches.map(match => ({
       id: match.id,
-      code: match.externalId || match.id.substring(0, 8),
-      name: match.title || match.matchName || 'Match',
+      code: match.matchId || match.id.substring(0, 8),
+      name: match.matchName || 'Match',
       dateTime: match.startTime,
-      matchType: match.matchType || (match.isCricket ? 'Cricket' : 'Other'),
+      matchType: match.sport || 'Cricket',
       declare: match.status,
       wonBy: match.winner || 'Not declared',
       plusMinus: '0', // This would be calculated from bet settlements
       teams: match.teams,
       tournament: match.tournament,
-      apiSource: match.apiSource,
       settledAt: match.settledAt,
-      result: match.result,
-      resultData: match.resultData
+      result: match.result
     }));
 
     res.status(200).json({

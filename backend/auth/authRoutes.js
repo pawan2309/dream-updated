@@ -53,7 +53,7 @@ router.get(
           subdomain: req.user?.subdomain,
           creditLimit: user.creditLimit || 0,
           exposure: user.exposure || 0,
-          balance: user.balance || 0
+
         },
       });
     } catch (error) {

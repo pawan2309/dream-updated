@@ -12,7 +12,8 @@ const CreateSuperAdmin = () => {
     reference: '',
     password: '',
     contactno: '',
-    balance: '',
+    creditLimit: '',
+
     share: '',
     commissionType: '',
     casinoShare: '',
@@ -150,7 +151,7 @@ const CreateSuperAdmin = () => {
 
       const requestData = {
         ...form,
-        creditLimit: Number(form.balance),
+        creditLimit: Number(form.creditLimit),
         role: 'SUPER_ADMIN',
         parentId: targetParentId, // Use the selected parent from hierarchy modal
         // Child's commission and share values
@@ -303,7 +304,7 @@ const CreateSuperAdmin = () => {
                       />
                       <small className="form-text text-muted">This shows how much limit the parent has available</small>
                     </div>
-                    <div className="form-group"><label>Balance</label><input type="number" name="balance" className="form-control shadow-none" value={form.balance} onChange={handleChange} /></div>
+                    <div className="form-group"><label>Credit Limit</label><input type="number" name="creditLimit" className="form-control shadow-none" value={form.creditLimit} onChange={handleChange} /></div>
                   </div>
                 </div>
               </div>

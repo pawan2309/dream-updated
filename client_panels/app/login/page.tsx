@@ -75,7 +75,7 @@ export default function Login() {
          <div className="flex justify-center mb-2">
            <div className="relative">
              <div className="flex items-center justify-center mx-4 mb-3">
-               <img className="w-[200px]" src="/images/2xbatlogo.png" alt="2XBAT Logo" />
+               <img className="w-[200px]" src="/images/2xbatlogo.png" alt="3XBAT Logo" />
              </div>
            </div>
          </div>

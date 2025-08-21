@@ -15,7 +15,7 @@ export async function GET(
 
   try {
     // Call the backend scorecard API
-    const backendUrl = `http://localhost:4001/fetch/scorecard/${eventId}`;
+    const backendUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/fetch/scorecard/${eventId}`;
     
     console.log(`🏏 Client Panels API: Fetching scorecard for event ${eventId} from backend`);
     

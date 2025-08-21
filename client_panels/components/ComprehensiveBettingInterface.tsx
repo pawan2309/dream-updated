@@ -6,6 +6,7 @@ import { websocketService } from '../lib/websocketService';
 import { useMarketStatus } from '../lib/hooks/useMarketStatus';
 import MarketSuspensionOverlay from './MarketSuspensionOverlay';
 import SuspendedBettingButton from './SuspendedBettingButton';
+import GlobalSuspensionOverlay, { MiniSuspensionIndicator } from './GlobalSuspensionOverlay';
 
 interface ComprehensiveBettingInterfaceProps {
   oddsData: OddsData | null;
@@ -239,6 +240,15 @@ export default function ComprehensiveBettingInterface({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Global Suspension Overlay */}
+      <GlobalSuspensionOverlay markets={currentOddsData?.markets || []} />
+      
+      {/* Suspension Indicator in Header */}
+      <div className="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+        <h2 className="text-lg font-semibold text-yellow-800">Live Betting Markets</h2>
+        <MiniSuspensionIndicator markets={currentOddsData?.markets || []} />
       </div>
 
       {/* Real-time Update Indicator */}

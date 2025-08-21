@@ -9,10 +9,12 @@ import { liveTVService } from '../../../../lib/liveTVService';
 import oddsService, { OddsData, BettingMarket } from '../../../../lib/oddsService';
 import HLSVideoPlayer from '../../../../components/HLSVideoPlayer';
 import { websocketService } from '../../../../lib/websocketService';
-import { BackOddsBox, LayOddsBox } from '../../../../components/OddsBox';
 import SuspendedOverlay from '../../../../components/SuspendedOverlay';
 import BetSlip from '../../../../components/BetSlip';
-import { useBetPlacement } from '../../../../lib/hooks/useBetPlacement';
+import { Toast } from '../../../../components/Toast';
+
+import { useAuth } from '../../../../lib/hooks/useAuth';
+import { useOptimizedMatchUpdates } from '../../../../lib/hooks/useOptimizedMatchUpdates';
 
 interface MatchDetailsPageProps {}
 
@@ -24,6 +26,7 @@ interface Bet {
   stake: number;
   type: 'back' | 'lay';
   marketName: string;
+  matchId: string;
 }
 
 interface BetSlipData {
@@ -33,12 +36,32 @@ interface BetSlipData {
   odds: number;
   type: 'back' | 'lay';
   marketName: string;
+  matchId: string;
   stake?: number;
 }
 
 export default function MatchDetailsPage({}: MatchDetailsPageProps) {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
+  const matchId = params.id as string;
+  
+  // Simple gstatus helper functions for overlay functionality
+  const isSelectionBlocked = (selection: any) => {
+    // Always return false - no selections are blocked
+    return false;
+  };
+
+  const getSuspensionText = (selection: any) => {
+    // Always return empty string - no suspension text
+    return '';
+  };
+
+  const getSuspensionBackgroundColor = (selection: any) => {
+    // Always return empty string - no suspension background
+    return '';
+  };
+
   const [match, setMatch] = useState<InPlayMatch | null>(null);
   const [scorecard, setScorecard] = useState<ScorecardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,24 +73,62 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
   const [bets, setBets] = useState<Bet[]>([]);
   const [stake, setStake] = useState<number>(0);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
-  const [isWebSocketConnected, setIsWebSocketConnected] = useState(true);
   
   // Bet placement state
   const [selectedBet, setSelectedBet] = useState<BetSlipData | null>(null);
-  const [betSlipOpen, setBetSlipOpen] = useState(false); // Added missing state
+  const [betSlipOpen, setBetSlipOpen] = useState(false);
+
+  // Function to handle bet confirmation (called after bet is already placed in BetSlip)
+  const handleBetConfirm = async (stake: number): Promise<boolean> => {
+    if (!selectedBet || !user) {
+      console.error('❌ [BET] No bet selected or user not authenticated');
+      return false;
+    }
+
+    try {
+      console.log('🔍 [BET] Bet already placed in BetSlip, updating UI...');
+      
+      // Add bet to local state (bet was already placed in BetSlip)
+      const newBet: Bet = {
+        ...selectedBet,
+        stake: stake
+      };
+      setBets(prev => [...prev, newBet]);
+      
+      // Reset bet slip
+      setSelectedBet(null);
+      setBetSlipOpen(false);
+      
+      return true;
+    } catch (error) {
+      console.error('❌ [BET] Error updating UI after bet placement:', error);
+      return false;
+    }
+  };
+
+  // Function to handle odds selection for betting
+  const handleOddsClick = (market: BettingMarket, selection: any, type: 'back' | 'lay') => {
+    if (!user) {
+      console.log('❌ [BET] User not authenticated, cannot place bet');
+      return;
+    }
+
+    const betData: BetSlipData = {
+      matchId: cleanMatchId,
+      marketId: market.marketId || market.id,
+      selectionId: selection.id,
+      selectionName: selection.name,
+      odds: selection.odds,
+      type: type,
+      marketName: market.name
+    };
+
+    console.log('🔍 [BET] Odds clicked, opening bet slip:', betData);
+    setSelectedBet(betData);
+    setBetSlipOpen(true);
+  };
   
-  // Use bet placement hook
-  const {
-    bets: placedBets,
-    isLoading: betLoading,
-    error: betError,
-    userChips, // Changed from userBalance to userChips
-    userExposure, // Added userExposure
-    placeBet,
-    updateBetStatus,
-    getUserChips, // Changed from getUserBalance to getUserChips
-    clearError
-  } = useBetPlacement();
+
 
   // Clean the match ID - remove any extra characters like (1.246615310)
   const cleanMatchId = (params.id as string)?.split('(')[0] || '';
@@ -80,27 +141,118 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
     }
   }, [params.id]);
 
+  // Debug log when odds data changes
+  useEffect(() => {
+    if (oddsData) {
+      console.log('🔍 [DEBUG] Odds data state updated:', {
+        marketsCount: oddsData.markets?.length || 0,
+        lastUpdated: oddsData.lastUpdated
+      });
+      
+      if (oddsData.markets && oddsData.markets.length > 0) {
+        console.log('🔍 [DEBUG] Analyzing all markets for gstatus values...');
+        
+        oddsData.markets.forEach((market, marketIndex) => {
+          console.log(`🔍 [DEBUG] Market ${marketIndex + 1}: ${market.name}`, {
+            selectionsCount: market.selections?.length || 0,
+            marketStatus: market.status
+          });
+          
+          if (market.selections && market.selections.length > 0) {
+            market.selections.forEach((selection, selectionIndex) => {
+              if (selectionIndex < 5) { // Log first 5 selections to avoid spam
+                console.log(`🔍 [DEBUG] Market ${marketIndex + 1}, Selection ${selectionIndex + 1}: ${selection.name}`, {
+                  gstatus: selection.gstatus,
+                  status: selection.status,
+                  type: selection.type,
+                  odds: selection.odds
+                });
+              }
+            });
+            
+            // Count gstatus values for this market
+            const gstatusCounts: { [key: string]: number } = {};
+            market.selections.forEach(selection => {
+              const gstatus = selection.gstatus || 'UNDEFINED';
+              gstatusCounts[gstatus] = (gstatusCounts[gstatus] || 0) + 1;
+            });
+            console.log(`🔍 [DEBUG] Market ${marketIndex + 1} gstatus distribution:`, gstatusCounts);
+          }
+        });
+      }
+    }
+  }, [oddsData]);
 
+  // Use optimized match updates hook (prevents page refresh)
+  const {
+    isConnected: isWebSocketConnected,
+    isUpdating,
+    lastUpdate,
+    updateCount,
+    getUpdateIndicatorStyles,
+    getLastUpdateText
+  } = useOptimizedMatchUpdates({
+    matchId: cleanMatchId,
+    onOddsUpdate: (data) => {
+      console.log('🔄 [OPTIMIZED] Odds update received:', data);
+      
+      // Debug log to see the structure of odds data
+      if (data && data.data && data.data.markets) {
+        console.log('🔍 [DEBUG] Odds data structure:', {
+          marketsCount: data.data.markets.length,
+          firstMarket: data.data.markets[0] ? {
+            name: data.data.markets[0].name,
+            selectionsCount: data.data.markets[0].selections?.length || 0
+          } : null
+        });
+        
+        // Check first selection for gstatus
+        if (data.data.markets[0] && data.data.markets[0].selections && data.data.markets[0].selections.length > 0) {
+          const firstSelection = data.data.markets[0].selections[0];
+          console.log('🔍 [DEBUG] First selection gstatus:', {
+            name: firstSelection.name,
+            gstatus: firstSelection.gstatus,
+            status: firstSelection.status
+          });
+        }
+      }
+      
+      setOddsData(prevData => {
+        if (!prevData) return prevData;
+        return {
+          ...prevData,
+          lastUpdated: new Date().toISOString(),
+          markets: data.data?.markets || prevData.markets
+        };
+      });
+    },
+    onFancyUpdate: (data) => {
+      console.log('🔄 [OPTIMIZED] Fancy update received:', data);
+    },
+    onScoreUpdate: (data) => {
+      console.log('🔄 [OPTIMIZED] Score update received:', data);
+    },
+    onStatusUpdate: (data) => {
+      console.log('🔄 [OPTIMIZED] Status update received:', data);
+    },
+    onMarketUpdate: (data) => {
+      console.log('🔄 [OPTIMIZED] Market update received:', data);
+    }
+  });
 
   // Helper function to determine match status from fixture data
   const getMatchStatus = (fixture: any): string => {
-    // First priority: if match is live (iplay = true), show INPLAY
     if (fixture.iplay === true) {
       return 'INPLAY';
     }
     
-    // Parse the start time properly
     let startTime: Date | null = null;
     if (fixture.stime) {
       try {
-        // Handle different date formats from API
         if (typeof fixture.stime === 'string') {
-          // Try parsing as is first
           startTime = new Date(fixture.stime);
           
-          // If invalid, try parsing with different formats
           if (isNaN(startTime.getTime())) {
-            // Try parsing as MM/DD/YYYY HH:MM:SS AM/PM format
             const parts = fixture.stime.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)\s+(AM|PM)/);
             if (parts) {
               const [_, month, day, year, hour, minute, second, ampm] = parts;
@@ -123,18 +275,14 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
     
     const now = new Date();
     
-    // If start time is in the future, match is upcoming
     if (startTime > now) {
       return 'UPCOMING';
     }
     
-    // If start time is in the past but within last 24 hours
     if (startTime <= now && startTime > new Date(now.getTime() - 24 * 60 * 60 * 1000)) {
-      // Check if match is still live or finished
       return fixture.iplay === true ? 'INPLAY' : 'FINISHED';
     }
     
-    // If start time is more than 24 hours ago, match is finished
     return 'FINISHED';
   };
 
@@ -152,227 +300,175 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
         setError(null);
         
         // Fetch real fixture data from the API
-        const response = await fetch(`http://localhost:4001/provider/cricketmatches`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/provider/cricketmatches`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const fixturesData = await response.json();
-        
-        // Find the specific match by beventId
-        const fixture = fixturesData.find((f: any) => 
-          f.beventId === cleanMatchId || f.id === cleanMatchId || f.gmid === cleanMatchId
+        const fixtures = await response.json();
+        const matchFixture = fixtures.find((fixture: any) => 
+          fixture.eventId === cleanMatchId || 
+          fixture.id === cleanMatchId ||
+          fixture.matchId === cleanMatchId
         );
         
-        if (!fixture) {
-          setError('Match not found');
-          setLoading(false);
-          return;
+        if (matchFixture) {
+          const matchData: InPlayMatch = {
+            id: matchFixture.id || matchFixture.eventId || matchFixture.matchId,
+            matchId: matchFixture.eventId || matchFixture.id || matchFixture.matchId,
+            matchName: matchFixture.eventName || matchFixture.name || `Match ${cleanMatchId}`,
+            tournament: matchFixture.tournament || matchFixture.cname || 'Cricket Match',
+            date: matchFixture.date || new Date().toLocaleDateString(),
+            time: matchFixture.time || new Date().toLocaleTimeString(),
+            status: getMatchStatus(matchFixture),
+            cd: matchFixture.team1 || matchFixture.brunners?.[0] || 'Team 1',
+            team2: matchFixture.team2 || matchFixture.brunners?.[1] || 'Team 2',
+            score1: matchFixture.score1 || '0-0',
+            score2: matchFixture.score2 || '0-0',
+            isLive: matchFixture.iplay === true || matchFixture.inPlay === true,
+            startTime: matchFixture.startTime || matchFixture.stime || null
+          };
+          
+          setMatch(matchData);
+          console.log('✅ [MATCH] Match data loaded:', matchData);
+        } else {
+          console.warn('⚠️ [MATCH] No fixture found for match ID:', cleanMatchId);
+          // Create a placeholder match
+          const placeholderMatch: InPlayMatch = {
+            id: cleanMatchId,
+            matchId: cleanMatchId,
+            matchName: `Match ${cleanMatchId}`,
+            tournament: 'Cricket Match',
+            date: new Date().toLocaleDateString(),
+            time: new Date().toLocaleTimeString(),
+            status: 'UPCOMING',
+            team1: 'Team 1',
+            team2: 'Team 2',
+            score1: '0-0',
+            score2: '0-0',
+            isLive: false,
+            startTime: null
+          };
+          setMatch(placeholderMatch);
         }
-        
-                 // Debug: Log fixture data for status determination
-         console.log('🔍 [DEBUG] Fixture data for status:', {
-           beventId: fixture.beventId,
-           ename: fixture.ename,
-           iplay: fixture.iplay,
-           stime: fixture.stime,
-           status: fixture.status,
-           gscode: fixture.gscode
-         });
-         
-         const matchStatus = getMatchStatus(fixture);
-         console.log('🔍 [DEBUG] Determined match status:', matchStatus);
-         
-         // Transform the API data to match our interface
-         const transformedMatch: InPlayMatch = {
-           id: fixture.beventId || fixture.id,
-           matchId: fixture.beventId || fixture.id,
-           matchName: fixture.ename || 'Unknown Match',
-           tournament: fixture.cname || 'Unknown Tournament',
-           date: fixture.stime ? new Date(fixture.stime).toLocaleDateString() : '',
-           time: fixture.stime ? new Date(fixture.stime).toLocaleTimeString() : '',
-           venue: '',
-           sport: 'Cricket',
-           matchStatus: fixture.iplay ? 'LIVE' : 'UPCOMING',
-           status: matchStatus,
-           isLive: fixture.iplay || false,
-           lastUpdate: Date.now(),
-          liveScore: {
-            homeScore: "",
-            awayScore: "",
-            overs: "",
-            runRate: "",
-            requiredRunRate: ""
-          },
-          liveOdds: {
-            home: 0,
-            away: 0,
-            draw: 0,
-            lastUpdated: Date.now()
-          }
-        };
-        
-        setMatch(transformedMatch);
-      } catch (err) {
-        console.error('Error fetching match data:', err);
-        setError('Failed to load match details. Please try again.');
+      } catch (error) {
+        console.error('❌ [MATCH] Error fetching match data:', error);
+        setError('Failed to fetch match data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMatchData();
-  }, [cleanMatchId]);
-
-  // Fetch odds data
-  useEffect(() => {
-    const fetchOddsData = async () => {
-      if (!cleanMatchId) return;
-
-      try {
-        const result = await oddsService.getMatchOdds(cleanMatchId);
-        if (result.success && result.data) {
-          setOddsData(result.data);
-        }
-      } catch (error) {
-        console.error('Error fetching odds:', error);
-      }
-    };
-
-    fetchOddsData();
-    // Refresh odds every 3 seconds
-    const interval = setInterval(fetchOddsData, 3000);
-    return () => clearInterval(interval);
+    if (cleanMatchId) {
+      fetchMatchData();
+    }
   }, [cleanMatchId]);
 
   // Fetch scorecard data
   useEffect(() => {
     const fetchScorecard = async () => {
-      if (!cleanMatchId) return;
+      if (!cleanMatchId || !match?.isLive) return;
 
       try {
-        const result = await scorecardService.getScorecard(cleanMatchId);
-        if (result.success && result.data) {
-          setScorecard(result.data);
-        }
+        const scorecardData = await scorecardService.getScorecard(cleanMatchId);
+        setScorecard(scorecardData);
       } catch (error) {
-        console.error('Error fetching scorecard:', error);
+        console.error('❌ [SCORECARD] Error fetching scorecard:', error);
       }
     };
 
-    fetchScorecard();
-    // Refresh scorecard every 10 seconds
-    const interval = setInterval(fetchScorecard, 3000);
-    return () => clearInterval(interval);
-  }, [cleanMatchId]);
+    if (match?.isLive) {
+      fetchScorecard();
+      const interval = setInterval(fetchScorecard, 30000); // Update every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [cleanMatchId, match?.isLive]);
 
-  // Fetch live stream URL
+  // Fetch live TV stream
   useEffect(() => {
-    const fetchStreamUrl = async () => {
-      if (!cleanMatchId) return;
+    const fetchStream = async () => {
+      if (!cleanMatchId || !match?.isLive) return;
 
       try {
-        const result = await liveTVService.getLiveStream(cleanMatchId);
-        if (result.success && result.data) {
-          setStreamUrl(result.data.streamUrl);
+        const streamData = await liveTVService.getLiveStream(cleanMatchId);
+        if (streamData && streamData.streamUrl) {
+          setStreamUrl(streamData.streamUrl);
         }
       } catch (error) {
-        console.error('Error fetching stream URL:', error);
+        console.error('❌ [STREAM] Error fetching stream:', error);
+        setStreamError('Failed to load stream');
       }
     };
 
-    fetchStreamUrl();
-  }, [cleanMatchId]);
+    if (match?.isLive) {
+      fetchStream();
+    }
+  }, [cleanMatchId, match?.isLive]);
 
-  // WebSocket real-time updates for odds
+  // Fetch initial odds data
   useEffect(() => {
-    if (!cleanMatchId) return;
+    const fetchOdds = async () => {
+      if (!cleanMatchId) return;
 
-    // Subscribe to odds updates for this specific match
-    const unsubscribeOdds = websocketService.subscribe('odds_update', (update) => {
-      if (update.matchId === cleanMatchId) {
-        console.log('🔄 [WEBSOCKET] Odds update received for match:', cleanMatchId, update);
+      try {
+        console.log('🔍 [ODDS] Fetching odds for match:', cleanMatchId);
+        const oddsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/odds/${cleanMatchId}`);
         
-        // Update odds data with new information
-        setOddsData(prevData => {
-          if (!prevData) return prevData;
+        console.log('🔍 [ODDS] Response status:', oddsResponse.status);
+        console.log('🔍 [ODDS] Response headers:', Object.fromEntries(oddsResponse.headers.entries()));
+        
+        if (oddsResponse.ok) {
+          const oddsData = await oddsResponse.json();
+          console.log('✅ [ODDS] Initial odds data loaded:', oddsData);
           
-          // Merge the updated odds data
-          return {
-            ...prevData,
-            lastUpdated: new Date().toISOString(),
-            markets: update.data?.markets || prevData.markets
-          };
-        });
+          if (oddsData && oddsData.markets && oddsData.markets.length > 0) {
+            console.log('✅ [ODDS] Found markets:', oddsData.markets.length);
+            setOddsData(oddsData);
+          } else {
+            console.warn('⚠️ [ODDS] No markets found in response:', oddsData);
+            setOddsData(null);
+          }
+        } else {
+          const errorText = await oddsResponse.text();
+          console.error('❌ [ODDS] API error:', oddsResponse.status, errorText);
+          setOddsData(null);
+        }
+      } catch (error) {
+        console.error('❌ [ODDS] Network error fetching odds:', error);
+        setOddsData(null);
       }
-    });
-
-    // Subscribe to match updates
-    const unsubscribeMatch = websocketService.subscribe('match_update', (update) => {
-      if (update.matchId === cleanMatchId) {
-        console.log('🔄 [WEBSOCKET] Match update received for match:', cleanMatchId, update);
-      }
-    });
-
-    // Subscribe to the specific match
-    websocketService.subscribeToMatch(cleanMatchId);
-
-    // Cleanup subscriptions
-    return () => {
-      unsubscribeOdds();
-      unsubscribeMatch();
-      websocketService.unsubscribeFromMatch(cleanMatchId);
     };
+
+    fetchOdds();
   }, [cleanMatchId]);
 
-  // Fetch user chips on component mount
-  useEffect(() => {
-    getUserChips();
-  }, [getUserChips]);
-
-  // Use all matches without filtering
+  // Get user chips on component mount
 
 
-  // Open bet slip for bet placement
-  const openBetSlip = (market: BettingMarket, selection: any, type: 'back' | 'lay') => {
+  // Extract team names from match data
+  const team1Name = match?.team1 || 'Team 1';
+  const team2Name = match?.team2 || 'Team 2';
+
+  // Function to open bet slip
+  const openBetSlip = (market: any, selection: any, type: 'back' | 'lay') => {
+    if (!user) {
+      alert('Please login to place bets');
+      return;
+    }
+
     const betData: BetSlipData = {
       marketId: market.id,
       selectionId: selection.id,
       selectionName: selection.name,
       odds: selection.odds,
       type: type,
-      marketName: market.name
+      marketName: market.name,
+      matchId: cleanMatchId,
+      stake: 100 // Default stake
     };
-    
+
     setSelectedBet(betData);
     setBetSlipOpen(true);
-  };
-
-  // Handle bet confirmation
-  const handleBetConfirm = async (stake: number): Promise<boolean> => {
-    if (!selectedBet) return false;
-    
-    const betData = {
-      ...selectedBet,
-      stake
-    };
-    
-    const success = await placeBet(betData, stake);
-    if (success) {
-      // Add to local bets array for display
-      const newBet: Bet = {
-        ...selectedBet,
-        stake,
-        marketId: selectedBet.marketId,
-        selectionId: selectedBet.selectionId,
-        selectionName: selectedBet.selectionName,
-        odds: selectedBet.odds,
-        type: selectedBet.type,
-        marketName: selectedBet.marketName
-      };
-      setBets([...bets, newBet]);
-    }
-    return success;
   };
 
 
@@ -391,7 +487,7 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
     );
   }
 
-  if (error || !match) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
@@ -399,10 +495,31 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
           <div className="text-center">
             <div className="text-red-600 text-6xl mb-4">⚠️</div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Match</h1>
-            <p className="text-gray-600 mb-4">{error || 'Match not found'}</p>
+            <p className="text-gray-600 mb-4">{error}</p>
             <button
-              onClick={() => router.push('/app/inplay')}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+              onClick={() => window.location.reload()}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!match) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="text-gray-600 text-6xl mb-4">❌</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Match Not Found</h1>
+            <p className="text-gray-600 mb-4">The requested match could not be found.</p>
+            <button
+              onClick={() => router.push('/app/matches')}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Back to Matches
             </button>
@@ -412,35 +529,13 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
     );
   }
 
-  // Extract team names from match data - handle both " vs " and " v " formats properly
-  let team1Name = '';
-  let team2Name = '';
-  
-  // Try " vs " format first
-  if (match.matchName.includes(' vs ')) {
-    const parts = match.matchName.split(' vs ');
-    team1Name = parts[0] || '';
-    team2Name = parts[1] || '';
-  }
-  // If no " vs " found, try " v " format
-  else if (match.matchName.includes(' v ')) {
-    const parts = match.matchName.split(' v ');
-    team1Name = parts[0] || '';
-    team2Name = parts[1] || '';
-  }
-  // If neither format found, set as single team
-  else {
-    team1Name = match.matchName;
-    team2Name = '';
-  }
-
   return (
-    <div className="min-h-dvh bg-gray-80 relative pt-[60px]">
+    <div className="min-h-screen bg-gray-50">
       <Header />
       
 
-      
-      {/* WebSocket Connection Warning */}
+
+      {/* WebSocket Connection Status */}
       {!isWebSocketConnected && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg mx-2 mt-1 p-2 flex items-start space-x-2">
           <div className="flex-shrink-0">
@@ -455,28 +550,28 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
         </div>
       )}
 
-      <div className="flex">
+      <div className="flex h-screen">
+        {/* Main Content Area - Independently Scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Match Header */}
+          <div className="bg-white border-b border-gray-200 py-1 px-2 sticky top-0 z-10">
+            <div className="max-w-6xl mx-auto">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-lg font-bold text-gray-900">{match.matchName || 'Loading...'}</h1>
+                  <p className="text-sm text-gray-600">
+                    {match.tournament && `${match.tournament} • `}{match.date} {match.time}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-sm font-medium">{match.status}</div>
+                  <div className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-sm font-medium">ID: {match.matchId}</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-
-        {/* Main Content Area */}
-        <div className="flex-1">
-                     {/* Match Header */}
-           <div className="bg-white border-b border-gray-200 py-1 px-2">
-             <div className="max-w-6xl mx-auto">
-               <div className="flex items-center justify-between">
-                 <div>
-                   <h1 className="text-lg font-bold text-gray-900">{match.matchName || 'Loading...'}</h1>
-                   <p className="text-sm text-gray-600">
-                     {match.tournament && `${match.tournament} • `}{match.date} {match.time}
-                   </p>
-                 </div>
-                 <div className="flex items-center space-x-2">
-                   <div className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-sm font-medium">{match.status}</div>
-                   <div className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-sm font-medium">ID: {match.matchId}</div>
-                 </div>
-               </div>
-             </div>
-           </div>
+                    
 
           {/* Scoreboard */}
           <div className="bg-gradient-to-r from-gray-800 to-gray-900 p-3">
@@ -484,14 +579,14 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
               <div className="flex items-center justify-between text-white">
                 {/* Left Team */}
                 <div className="flex items-center space-x-3">
-                                     <div className="text-center">
-                     <div className="text-2xl font-bold text-blue-300">
-                       {scorecard?.data?.spnnation1 || team1Name?.substring(0, 2)?.toUpperCase() || 'T1'}
-                     </div>
-                     <div className="text-sm opacity-90 text-gray-200">
-                       {team1Name || 'Team 1'}
-                     </div>
-                   </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-300">
+                      {scorecard?.data?.spnnation1 || team1Name?.substring(0, 2)?.toUpperCase() || 'T1'}
+                    </div>
+                    <div className="text-sm opacity-90 text-gray-200">
+                      {team1Name || 'Team 1'}
+                    </div>
+                  </div>
                   <div className="text-center">
                     <div className="text-xl font-bold text-white">
                       {scorecard?.data?.score1 || '0-0'}
@@ -534,8 +629,6 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                   <div className="text-xs opacity-75 text-gray-300">
                     Current Over • {scorecard?.data?.activenation2 === '1' ? team2Name : team1Name} batting
                   </div>
-                  
-                  
                 </div>
 
                 {/* Right Team */}
@@ -548,293 +641,136 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                       RR: {scorecard?.data?.spnrunrate2 || '0.00'}
                     </div>
                   </div>
-                                     <div className="text-center">
-                     <div className="text-2xl font-bold text-gray-400">
-                       {scorecard?.data?.spnnation2 || team2Name?.substring(0, 2)?.toUpperCase() || 'T2'}
-                     </div>
-                     <div className="text-sm opacity-90 text-gray-200">
-                       {team2Name || 'Team 2'}
-                     </div>
-                   </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-400">
+                      {scorecard?.data?.spnnation2 || team2Name?.substring(0, 2)?.toUpperCase() || 'T2'}
+                    </div>
+                    <div className="text-sm opacity-90 text-gray-200">
+                      {team2Name || 'Team 2'}
+                    </div>
+                  </div>
                 </div>
               </div>
-              
-              {/* Match Progress Bar */}
-              {scorecard?.data?.spnreqrate2 && (
-                <div className="mt-3 text-center">
-                  <div className="text-sm text-gray-300 mb-1">
-                    Required Run Rate: {scorecard.data.spnreqrate2}
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-2">
-                    <div className="bg-green-500 h-2 rounded-full" style={{ width: '50%' }}></div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Betting Markets */}
-          <div className="max-w-6xl mx-auto p-2">
-            
-          
-            
-            {/* Dynamic Markets Display - Shows ALL available markets from API */}
-            <div className="space-y-3">
-              {loading ? (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                  <div className="text-center text-gray-500">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-1"></div>
-                    <p className="text-sm">Loading odds data...</p>
-                  </div>
-                </div>
-              ) : oddsData?.markets && oddsData.markets.length > 0 ? (
-                oddsData.markets.map((market, marketIndex) => {
-                  // Group selections by name and type
-                  const groupedSelections: Record<string, { back: any[]; lay: any[] }> = {};
-                  market.selections?.forEach(selection => {
-                    const baseName = selection.name;
-                    if (!groupedSelections[baseName]) {
-                      groupedSelections[baseName] = { back: [], lay: [] };
-                    }
-                    if (selection.type === 'back') {
-                      groupedSelections[baseName].back.push(selection);
-                    } else if (selection.type === 'lay') {
-                      groupedSelections[baseName].lay.push(selection);
-                    }
-                  });
-                  
-                  // Sort back odds (best first) and lay odds (best first)
-                  Object.values(groupedSelections).forEach(group => {
-                    group.back.sort((a, b) => a.odds - b.odds);
-                    group.lay.sort((a, b) => b.odds - a.odds);
-                  });
-
-                  // Determine market type for styling
-                  const isMainMarket = market.id === 'match_odds' || market.id === 'bookmaker';
-                  const isTiedMarket = market.id === 'tied_match';
-                  const isFancyMarket = market.id === 'normal' || market.id === 'fancy1';
-                  
-                  return (
+          {/* Odds Section */}
+          <div className="p-4">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Betting Markets</h2>
+              
+              {oddsData && oddsData.markets && oddsData.markets.length > 0 ? (
+                <div className="space-y-4">
+                  {oddsData.markets.map((market, marketIndex) => (
                     <div key={market.id || marketIndex} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                      {/* Market Title */}
-                      <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                      {/* Market Header */}
+                      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h3 className="text-base font-semibold text-gray-900">{market.name}</h3>
-                            <p className="text-xs text-gray-600 mt-0.5">
+                            <h3 className="text-lg font-semibold text-gray-900">{market.name}</h3>
+                            <p className="text-sm text-gray-600 mt-1">
                               Min: {market.minStake?.toLocaleString() || '100'} | 
                               Max: {market.maxStake?.toLocaleString() || '500K'}
                             </p>
                           </div>
-                          <button className="px-3 py-1 bg-green-500 text-white rounded text-sm font-medium hover:bg-green-600 transition-colors" disabled>
-                            Cashout
-                          </button>
                         </div>
                       </div>
-                      
-                      {/* Market Content */}
+
+                      {/* Market Content - Table Layout */}
                       <div className="overflow-x-auto">
-                        {Object.keys(groupedSelections).length > 0 ? (
-                          <table className="w-full">
-                            <thead className="bg-gray-100">
-                              <tr>
-                                <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b border-gray-200">
-                                  Selection
-                                </th>
-                                {isMainMarket ? (
-                                  <>
-                                    <th className="px-2 py-2 text-center text-sm font-medium text-gray-700 border-b border-gray-200">
-                                      <div className="flex flex-col space-y-0.5">
-                                        <span className="text-blue-600 font-semibold">Back</span>
-                                        <div className="flex space-x-1 justify-center">
-                                          <span className="text-xs text-gray-500">2</span>
-                                          <span className="text-xs text-gray-500">1</span>
-                                          <span className="text-xs text-gray-500">Best</span>
-                                        </div>
-                                      </div>
-                                    </th>
-                                    <th className="px-2 py-2 text-center text-sm font-medium text-gray-700 border-b border-gray-200">
-                                      <div className="flex flex-col space-y-0.5">
-                                        <span className="text-pink-600 font-semibold">Lay</span>
-                                        <div className="flex space-x-1 justify-center">
-                                          <span className="text-xs text-gray-500">Best</span>
-                                          <span className="text-xs text-gray-500">1</span>
-                                          <span className="text-xs text-gray-500">2</span>
-                                        </div>
-                                      </div>
-                                    </th>
-                                  </>
-                                ) : (
-                                  <>
-                                    <th className="px-2 py-2 text-center text-sm font-medium text-gray-700 border-b border-gray-200">
-                                      <span className="text-pink-600 font-semibold">No</span>
-                                    </th>
-                                    <th className="px-2 py-2 text-center text-sm font-medium text-gray-700 border-b border-gray-200">
-                                      <span className="text-blue-600 font-semibold">Yes</span>
-                                    </th>
-                                  </>
-                                )}
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {Object.entries(groupedSelections).map(([name, selections], index) => (
-                                <tr key={name} className="hover:bg-gray-50 transition-colors">
-                                  <td className="px-4 py-2 border-b border-gray-200">
-                                    <div className="flex items-center">
-                                      <div className="text-sm font-medium text-gray-900 max-w-xs truncate" title={name}>
-                                        {name}
-                                      </div>
-                                    </div>
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 border-b border-gray-200">
+                                Selection
+                              </th>
+                              <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 border-b border-gray-200">
+                                Back Odds
+                              </th>
+                              <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 border-b border-gray-200">
+                                Lay Odds
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {market.selections && market.selections.length > 0 ? (
+                              // Group selections by name to show back/lay side by side
+                              Object.entries(
+                                market.selections.reduce((acc: any, selection) => {
+                                  const key = selection.name;
+                                  if (!acc[key]) {
+                                    acc[key] = { back: null, lay: null };
+                                  }
+                                  if (selection.type === 'back') {
+                                    acc[key].back = selection;
+                                  } else if (selection.type === 'lay') {
+                                    acc[key].lay = selection;
+                                  }
+                                  return acc;
+                                }, {})
+                              ).map(([selectionName, selections]: [string, any], rowIndex) => (
+                                <tr key={rowIndex} className="border-b border-gray-100 hover:bg-gray-50">
+                                  {/* Selection Name */}
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                    {selectionName}
                                   </td>
                                   
-                                  {isMainMarket ? (
-                                    <>
-                                      {/* Back Odds Column */}
-                                      <td className="px-2 py-2 border-b border-gray-200">
-                                        <div className="flex space-x-2 justify-center">
-                                          {/* Back2 */}
-                                          {selections.back.length >= 3 ? (
-                                            <BackOddsBox
-                                              value={selections.back[2].odds}
-                                              volume={selections.back[2].stake}
-                                              onClick={() => openBetSlip(market, selections.back[2], 'back')}
-                                              tier={2}
-                                            />
-                                          ) : (
-                                            <div className="w-20 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                              <span className="text-gray-400 text-sm">-</span>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Back1 */}
-                                          {selections.back.length >= 2 ? (
-                                            <BackOddsBox
-                                              value={selections.back[1].odds}
-                                              volume={selections.back[1].stake}
-                                              onClick={() => openBetSlip(market, selections.back[1], 'back')}
-                                              tier={1}
-                                            />
-                                          ) : (
-                                            <div className="w-20 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                              <span className="text-gray-400 text-sm">-</span>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Back (Best) */}
-                                          {selections.back.length >= 1 ? (
-                                            <BackOddsBox
-                                              value={selections.back[0].odds}
-                                              volume={selections.back[0].stake}
-                                              onClick={() => openBetSlip(market, selections.back[0], 'back')}
-                                              tier={0}
-                                            />
-                                          ) : (
-                                            <div className="w-20 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                              <span className="text-gray-400 text-sm">-</span>
-                                            </div>
-                                          )}
+                                  {/* Back Odds */}
+                                  <td className="px-4 py-3 text-center">
+                                    {selections.back ? (
+                                                                             <div 
+                                         className="inline-block p-2 rounded cursor-pointer transition-colors bg-green-100 border border-green-300 hover:bg-green-200 cursor-pointer"
+                                         onClick={() => openBetSlip(market, selections.back, 'back')}
+                                       >
+                                        <div className="text-lg font-bold text-green-700">
+                                          {selections.back.odds}
                                         </div>
-                                      </td>
-                                      
-                                      {/* Lay Odds Column */}
-                                      <td className="px-2 py-2 border-b border-gray-200">
-                                        <div className="flex space-x-2 justify-center">
-                                          {/* Lay (Best) */}
-                                          {selections.lay.length >= 1 ? (
-                                            <LayOddsBox
-                                              value={selections.lay[0].odds}
-                                              volume={selections.lay[0].stake}
-                                              onClick={() => openBetSlip(market, selections.lay[0], 'lay')}
-                                              tier={0}
-                                            />
-                                          ) : (
-                                            <div className="w-20 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                              <span className="text-gray-400 text-sm">-</span>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Lay1 */}
-                                          {selections.lay.length >= 2 ? (
-                                            <LayOddsBox
-                                              value={selections.lay[1].odds}
-                                              volume={selections.lay[1].stake}
-                                              onClick={() => openBetSlip(market, selections.lay[1], 'lay')}
-                                              tier={1}
-                                            />
-                                          ) : (
-                                            <div className="w-20 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                              <span className="text-gray-400 text-sm">-</span>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Lay2 */}
-                                          {selections.lay.length >= 3 ? (
-                                            <LayOddsBox
-                                              value={selections.lay[2].odds}
-                                              volume={selections.lay[2].stake}
-                                              onClick={() => openBetSlip(market, selections.lay[2], 'lay')}
-                                              tier={2}
-                                            />
-                                          ) : (
-                                            <div className="w-20 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                              <span className="text-gray-400 text-sm">-</span>
-                                            </div>
-                                          )}
+                                        <div className="text-xs text-gray-600">
+                                          {selections.back.stake?.toLocaleString() || '0'}
                                         </div>
-                                      </td>
-                                    </>
-                                  ) : (
-                                    <>
-                                      {/* Lay (No) */}
-                                      <td className="px-2 py-2 border-b border-gray-200">
-                                        <div className="flex justify-center">
-                                          {selections.lay.length >= 1 ? (
-                                            <LayOddsBox
-                                              value={selections.lay[0].odds}
-                                              volume={selections.lay[0].stake}
-                                              onClick={() => openBetSlip(market, selections.lay[0], 'lay')}
-                                            />
-                                          ) : (
-                                            <div className="w-20 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                              <span className="text-gray-400 text-sm">-</span>
-                                            </div>
-                                          )}
+                                        
+                                        
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-400 text-sm">-</span>
+                                    )}
+                                  </td>
+                                  
+                                  {/* Lay Odds */}
+                                  <td className="px-4 py-3 text-center">
+                                    {selections.lay ? (
+                                                                             <div 
+                                         className="inline-block p-2 rounded cursor-pointer transition-colors bg-pink-100 border border-pink-300 hover:bg-pink-200 cursor-pointer"
+                                         onClick={() => openBetSlip(market, selections.lay, 'lay')}
+                                       >
+                                        <div className="text-lg font-bold text-pink-700">
+                                          {selections.lay.odds}
                                         </div>
-                                      </td>
-                                      
-                                      {/* Back (Yes) */}
-                                      <td className="px-2 py-2 border-b border-gray-200">
-                                        <div className="flex justify-center">
-                                          {selections.back.length >= 1 ? (
-                                            <BackOddsBox
-                                              value={selections.back[0].odds}
-                                              volume={selections.back[0].stake}
-                                              onClick={() => openBetSlip(market, selections.back[0], 'back')}
-                                            />
-                                          ) : (
-                                            <div className="w-20 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                              <span className="text-gray-400 text-sm">-</span>
-                                            </div>
-                                          )}
+                                        <div className="text-xs text-gray-600">
+                                          {selections.lay.stake?.toLocaleString() || '0'}
                                         </div>
-                                      </td>
-                                    </>
-                                  )}
+                                        
+                                        
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-400 text-sm">-</span>
+                                    )}
+                                  </td>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <div className="p-4 text-center text-gray-500">
-                            <p className="text-sm">No selections available for this market</p>
-                          </div>
-                        )}
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
+                                  No selections available for this market.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
                       </div>
-                      
-                      {/* Market Remarks - Removed hardcoded text */}
                     </div>
-                  );
-                })
+                  ))}
+                </div>
               ) : (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                   <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
@@ -843,11 +779,39 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
                         <h3 className="text-base font-semibold text-gray-900">No Markets Available</h3>
                         <p className="text-sm text-gray-600">No betting markets are currently available for this match</p>
                       </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            console.log('🔄 [ODDS] Retrying odds fetch...');
+                            const oddsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/odds/${cleanMatchId}`);
+                            if (oddsResponse.ok) {
+                              const oddsData = await oddsResponse.json();
+                              if (oddsData && oddsData.markets && oddsData.markets.length > 0) {
+                                setOddsData(oddsData);
+                                console.log('✅ [ODDS] Retry successful, found markets:', oddsData.markets.length);
+                              }
+                            } else {
+                              console.error('❌ [ODDS] Retry failed with status:', oddsResponse.status);
+                            }
+                          } catch (error) {
+                            console.error('❌ [ODDS] Retry error:', error);
+                          }
+                        }}
+                        className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors"
+                      >
+                        🔄 Retry
+                      </button>
                     </div>
                   </div>
                   <div className="p-6">
                     <div className="text-center text-gray-500">
-                      <p>No odds data available. Please check the API connection or try refreshing the page.</p>
+                      <p className="mb-4">No odds data available. This could be due to:</p>
+                      <ul className="text-sm text-left max-w-md mx-auto space-y-1">
+                        <li>• Match not yet started</li>
+                        <li>• Odds temporarily unavailable</li>
+                        <li>• API connection issue</li>
+                      </ul>
+                      <p className="mt-4 text-xs">Check browser console for detailed error information.</p>
                     </div>
                   </div>
                 </div>
@@ -857,104 +821,91 @@ export default function MatchDetailsPage({}: MatchDetailsPageProps) {
         </div>
 
         {/* Right Sidebar - Live Feed & Bet Slip */}
-        <div className={`${isRightSidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 right-0 z-40 w-96 bg-white shadow-xl lg:shadow-none transition-transform duration-300 ease-in-out`}>
-          <div className="h-full overflow-y-auto">
+        <div className={`${isRightSidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 fixed lg:relative inset-y-0 right-0 z-40 w-96 bg-white shadow-xl lg:shadow-none transition-transform duration-300 ease-in-out`}>
+          <div className="h-full flex flex-col">
             
-            {/* Live Feed Section - Now at the top */}
-            <div className="bg-gray-600 p-2 text-white">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold">Live Feed</h3>
-                <button
-                  onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-                  className="lg:hidden text-white"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-2">
-              {/* Live Stream */}
-              {streamUrl ? (
-                <div className="mb-2">
-                  <HLSVideoPlayer
-                    src={streamUrl}
-                    eventId={cleanMatchId}
-                    className="w-full aspect-video rounded-lg"
-                    onError={(error) => setStreamError(error)}
-                    onLoad={() => setStreamError(null)}
-                  />
-                </div>
-              ) : streamError ? (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-center mb-2">
-                  <div className="text-red-600 text-sm mb-1">Stream Unavailable</div>
-                  <div className="text-red-500 text-xs">{streamError}</div>
-                </div>
-              ) : (
-                <div className="bg-gray-100 border border-gray-200 rounded-lg p-2 text-center mb-2">
-                  <div className="text-gray-600 text-sm">Loading stream...</div>
-                </div>
-              )}
-
-              {/* Stream Info */}
-              <div className="space-y-2 text-sm mb-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Status:</span>
-                  <span className={`font-medium ${streamUrl ? 'text-green-600' : 'text-gray-500'}`}>
-                    {streamUrl ? 'Live' : 'Offline'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Event ID:</span>
-                  <span className="text-gray-800 font-medium">{cleanMatchId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Provider:</span>
-                  <span className="text-blue-600 font-medium">
-                    {streamUrl ? 'Live TV' : 'Streaming'}
-                  </span>
+            {/* Live Feed Section */}
+            <div className="flex-shrink-0">
+              <div className="bg-gray-600 p-2 text-white">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-semibold">Live Feed</h3>
+                  <button
+                    onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                    className="lg:hidden text-white"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               </div>
+              
+              <div className="p-2">
+                {/* Live Stream */}
+                {streamUrl ? (
+                  <div className="mb-2">
+                    <HLSVideoPlayer
+                      src={streamUrl}
+                      eventId={cleanMatchId}
+                      className="w-full aspect-video rounded-lg"
+                      onError={(error) => setStreamError(error)}
+                      onLoad={() => setStreamError(null)}
+                    />
+                  </div>
+                ) : streamError ? (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-center mb-2">
+                    <div className="text-red-600 text-sm mb-1">Stream Unavailable</div>
+                    <div className="text-red-500 text-xs">{streamError}</div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-100 border border-gray-200 rounded-lg p-2 text-center mb-2">
+                    <div className="text-gray-600 text-sm">Loading stream...</div>
+                  </div>
+                )}
 
+                {/* Stream Info */}
+                <div className="space-y-2 text-sm mb-4">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Status:</span>
+                    <span className={`font-medium ${streamUrl ? 'text-green-600' : 'text-gray-500'}`}>
+                      {streamUrl ? 'Live' : 'Offline'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Event ID:</span>
+                    <span className="text-gray-800 font-medium">{cleanMatchId}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Provider:</span>
+                    <span className="text-blue-600 font-medium">
+                      {streamUrl ? 'Live TV' : 'Streaming'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Bet Slip Section - Now below Live Feed */}
-            <div className="border-t border-gray-200">
+            {/* Bet Slip Section */}
+            <div className="flex-shrink-0 border-t border-gray-200">
               <div className="bg-blue-600 p-2 text-white">
                 <h2 className="text-base font-bold">Bet Slip</h2>
               </div>
               
               <div className="p-2">
-                <BetSlip
-                  bet={selectedBet}
-                  onConfirm={handleBetConfirm}
-                  onClose={() => setSelectedBet(null)}
-                  userBalance={userChips}
-                  isLoading={betLoading}
-                />
+                                 <BetSlip
+                   bet={selectedBet}
+                   onConfirm={handleBetConfirm}
+                   onClose={() => setSelectedBet(null)}
+                   userBalance={user?.creditLimit || 0}
+                   isLoading={false}
+                 />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Error Toast */}
-      {betError && (
-        <div className="fixed top-20 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
-          <div className="flex items-center justify-between">
-            <span>{betError}</span>
-            <button
-              onClick={clearError}
-              className="ml-4 text-white hover:text-gray-200"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }
-

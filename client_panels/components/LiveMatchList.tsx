@@ -35,35 +35,6 @@ export const LiveMatchList: React.FC<LiveMatchListProps> = ({
     router.push(`/app/match/${matchId}`);
   };
 
-  const getStatusColor = (status: string, isLive: boolean) => {
-    if (isLive && status === 'LIVE') return 'bg-green-100 text-green-800';
-    if (status === 'LIVE' || status === 'INPLAY') return 'bg-green-100 text-green-800';
-    if (status === 'BREAK') return 'bg-yellow-100 text-yellow-800';
-    if (status === 'INTERVAL') return 'bg-blue-100 text-blue-800';
-    if (status === 'FINISHED' || status === 'COMPLETED') return 'bg-gray-100 text-gray-800';
-    if (status === 'UPCOMING' || status === 'SCHEDULED' || status === 'OPEN') return 'bg-blue-100 text-blue-800';
-    if (status === 'POSTPONED' || status === 'CANCELLED') return 'bg-red-100 text-red-800';
-    return 'bg-gray-100 text-gray-800';
-  };
-
-  const getStatusText = (status: string, isLive: boolean) => {
-    // Handle live matches first
-    if (isLive && (status === 'INPLAY' || status === 'LIVE')) return 'LIVE';
-    if (status === 'INPLAY' || status === 'LIVE') return 'LIVE';
-    
-    // Handle other statuses
-    if (status === 'UPCOMING' || status === 'OPEN') return 'UPCOMING';
-    if (status === 'SCHEDULED') return 'SCHEDULED';
-    if (status === 'FINISHED' || status === 'COMPLETED') return 'FINISHED';
-    if (status === 'BREAK') return 'BREAK';
-    if (status === 'INTERVAL') return 'INTERVAL';
-    if (status === 'POSTPONED') return 'POSTPONED';
-    if (status === 'CANCELLED') return 'CANCELLED';
-    
-    // Default fallback - convert to title case for better display
-    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-  };
-
   const formatDateTime = (date: string, time: string) => {
     try {
       const dateTime = new Date(`${date} ${time}`);
@@ -80,27 +51,15 @@ export const LiveMatchList: React.FC<LiveMatchListProps> = ({
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Match</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Series</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Match</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {[...Array(5)].map((_, index) => (
                 <tr key={index} className="animate-pulse">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="h-4 bg-gray-200 rounded w-48"></div>
-                    <div className="h-3 bg-gray-200 rounded w-32 mt-2"></div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="h-4 bg-gray-200 rounded w-24"></div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="h-4 bg-gray-200 rounded w-32"></div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="h-6 bg-gray-200 rounded w-16"></div>
+                  <td className="px-4 py-2 text-center">
+                    <div className="h-3 bg-gray-200 rounded w-48 mx-auto"></div>
+                    <div className="h-2 bg-gray-200 rounded w-32 mt-1 mx-auto"></div>
                   </td>
                 </tr>
               ))}
@@ -113,16 +72,16 @@ export const LiveMatchList: React.FC<LiveMatchListProps> = ({
 
   if (error) {
     return (
-      <div className={`bg-red-50 border border-red-200 rounded-lg p-6 ${className}`}>
+      <div className={`bg-red-50 border border-red-200 rounded-lg p-4 ${className}`}>
         <div className="flex items-center">
           <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <svg className="h-4 w-4 text-red-400" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
           </div>
-          <div className="ml-3">
+          <div className="ml-2">
             <h3 className="text-sm font-medium text-red-800">Error loading in-play matches</h3>
-            <p className="text-sm text-red-700 mt-1">{error}</p>
+            <p className="text-xs text-red-700 mt-0.5">{error}</p>
           </div>
         </div>
       </div>
@@ -131,13 +90,13 @@ export const LiveMatchList: React.FC<LiveMatchListProps> = ({
 
   if (matches.length === 0) {
     return (
-      <div className={`bg-white rounded-lg shadow-md p-6 ${className}`}>
+      <div className={`bg-white rounded-lg shadow-md p-4 ${className}`}>
         <div className="text-center">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="mx-auto h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No in-play matches</h3>
-          <p className="mt-1 text-sm text-gray-500">{emptyMessage}</p>
+          <h3 className="mt-1 text-sm font-medium text-gray-900">No in-play matches</h3>
+          <p className="mt-0.5 text-xs text-gray-500">{emptyMessage}</p>
         </div>
       </div>
     );
@@ -145,70 +104,63 @@ export const LiveMatchList: React.FC<LiveMatchListProps> = ({
 
   return (
     <div className={`bg-white rounded-lg shadow-md ${className}`}>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Match</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Series</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {sortedMatches.map((match) => {
-              // Debug: Log the match data being rendered
-              console.log('🔍 Rendering Match:', {
-                id: match.id,
-                matchStatus: match.matchStatus,
-                isLive: match.isLive,
-                status: match.status
-              });
-              
-              return (
-                <tr 
-                  key={match.id} 
-                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${match.isLive ? 'bg-green-50' : ''}`}
-                  onClick={() => handleMatchClick(match.id)}
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Match</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {sortedMatches.map((match) => {
+            // Debug: Log the match data being rendered
+            console.log('🔍 Rendering Match:', {
+              id: match.id,
+              matchStatus: match.matchStatus,
+              isLive: match.isLive,
+              status: match.status
+            });
+            
+            return (
+              <tr 
+                key={match.id} 
+                className={`hover:bg-gray-50 cursor-pointer transition-colors ${match.isLive ? 'bg-green-50' : ''}`}
+                onClick={() => handleMatchClick(match.id)}
+              >
+                <td className="px-4 py-2 text-center">
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center mb-1">
                       {match.isLive && (
-                        <div className="w-2 h-2 bg-red-500 rounded-full mr-3 animate-pulse"></div>
+                        <div className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></div>
                       )}
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
-                          {match.matchName}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {match.venue && `Venue: ${match.venue}`}
-                        </div>
-                        {match.liveScore && (
-                          <div className="text-xs text-gray-600 mt-1">
-                            {match.liveScore.homeScore} vs {match.liveScore.awayScore} ({match.liveScore.overs})
-                          </div>
-                        )}
+                      <div className="text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 px-8 py-2 rounded-md mx-auto text-center">
+                        {match.matchName}
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{match.tournament}</div>
-                    <div className="text-xs text-gray-500">ID: {match.matchId || match.id}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{formatDateTime(match.date, match.time)}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(match.matchStatus, match.isLive)}`}>
-                      {getStatusText(match.matchStatus, match.isLive)}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    <div className="text-xs text-gray-500 mb-0.5">
+                      {formatDateTime(match.date, match.time)}
+                    </div>
+                    {match.tournament && (
+                      <div className="text-xs text-gray-600 mb-0.5">
+                        {match.tournament}
+                      </div>
+                    )}
+                    {match.venue && (
+                      <div className="text-xs text-gray-600 mb-0.5">
+                        Venue: {match.venue}
+                      </div>
+                    )}
+                    {match.liveScore && (
+                      <div className="text-xs text-gray-600">
+                        {match.liveScore.homeScore} vs {match.liveScore.awayScore} ({match.liveScore.overs})
+                      </div>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 };

@@ -115,7 +115,7 @@ async function createGame(req: NextApiRequest, res: NextApiResponse, currentUser
     const match = await prisma.match.create({
       data: {
         title: name,
-        externalId: `match_${Date.now()}`,
+        matchId: `match_${Date.now()}`,
         status: 'UPCOMING'
       }
     });

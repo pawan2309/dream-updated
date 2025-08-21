@@ -151,7 +151,6 @@ class AutoMatchSync {
         // Update existing match with enhanced data
         await database.update('Match', { id: existingMatch.id }, {
           lastUpdated: new Date(),
-          rawData: matchData,
           status: this.mapStatus(matchData.status || matchData.iplay, matchData),
           isLive: Boolean(matchData.inPlay || matchData.iplay),
           title: matchData.eventName || matchData.name || existingMatch.title,
@@ -190,8 +189,7 @@ class AutoMatchSync {
         apiSource: matchData.apiSource || 'shamexch.xyz',
         
         // Additional fields that might be useful
-        bmarketId: matchData.bmarketId || matchData.marketId || null,
-        rawData: matchData
+        bmarketId: matchData.bmarketId || matchData.marketId || null
       };
 
       const newMatch = await database.insert('Match', matchDataToInsert);
@@ -224,12 +222,8 @@ class AutoMatchSync {
    */
   async fixIncorrectMatchIds(match, correctEventId) {
     try {
-      // Extract original ID from raw data if available
+      // Use the provided correct event ID
       let originalId = correctEventId;
-      
-      if (match.rawData) {
-        originalId = match.rawData.eventId || match.rawData.id || match.rawData.beventId || correctEventId;
-      }
 
       // IMPORTANT: Check if there are any bets referencing this match
       const relatedBets = await database.findMany('Bet', {
@@ -299,8 +293,7 @@ class AutoMatchSync {
         matchType: oldMatch.matchType || 'match',
         teams: oldMatch.teams,
         apiSource: oldMatch.apiSource || 'shamexch.xyz',
-        bmarketId: oldMatch.bmarketId,
-        rawData: oldMatch.rawData
+        bmarketId: oldMatch.bmarketId
       };
 
       const newMatch = await database.insert('Match', newMatchData);
@@ -412,9 +405,9 @@ class AutoMatchSync {
             hasBetsCount++;
             logger.info(`[AUTO-SYNC] Match ${match.id} has ${relatedBets.length} bets - attempting safe migration`);
             
-            // Try to safely migrate the match with bets
-            const correctId = match.rawData?.eventId || match.rawData?.id || match.rawData?.beventId;
-            if (correctId) {
+            // Try to safely migrate the match with bets using externalId
+            const correctId = match.externalId || match.beventId;
+            if (correctId && !correctId.toString().startsWith('prov-')) {
               const migrationSuccess = await this.safelyMigrateMatchWithBets(match, correctId);
               if (migrationSuccess) {
                 fixedCount++;
@@ -430,9 +423,9 @@ class AutoMatchSync {
 
           // Safe to fix - no foreign key constraints
           safeToFixCount++;
-          const correctId = match.rawData?.eventId || match.rawData?.id || match.rawData?.beventId;
+          const correctId = match.externalId || match.beventId;
           
-          if (correctId) {
+          if (correctId && !correctId.toString().startsWith('prov-')) {
             const success = await this.fixIncorrectMatchIds(match, correctId);
             if (success) fixedCount++;
           } else {

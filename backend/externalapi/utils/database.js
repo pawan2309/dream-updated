@@ -9,8 +9,11 @@ class DatabaseManager {
 
     async connect() {
         try {
-            const connectionString = process.env.PG_URL || process.env.DATABASE_URL || 
-                'postgresql://localhost:5432/betting';
+            const connectionString = process.env.PG_URL || process.env.DATABASE_URL;
+            
+            if (!connectionString) {
+                throw new Error('Database connection string not provided. Please set PG_URL or DATABASE_URL environment variable.');
+            }
 
             this.pool = new Pool({
                 connectionString,
@@ -144,7 +147,8 @@ class DatabaseManager {
             
             // Explicitly specify public schema with quoted table names and column names for case sensitivity
             const schemaTable = table.includes('.') ? table : `public."${table}"`;
-            const query = `SELECT ${columns.join(', ')} FROM ${schemaTable} ${whereClause} LIMIT 1`;
+            const quotedColumns = columns.map(col => col === '*' ? col : `"${col}"`).join(', ');
+            const query = `SELECT ${quotedColumns} FROM ${schemaTable} ${whereClause} LIMIT 1`;
             const values = Object.values(conditions);
             
             const result = await this.query(query, values);
@@ -164,7 +168,8 @@ class DatabaseManager {
             
             // Explicitly specify public schema with quoted table names and column names for case sensitivity
             const schemaTable = table.includes('.') ? table : `public."${table}"`;
-            let query = `SELECT ${columns.join(', ')} FROM ${schemaTable} ${whereClause}`;
+            const quotedColumns = columns.map(col => col === '*' ? col : `"${col}"`).join(', ');
+            let query = `SELECT ${quotedColumns} FROM ${schemaTable} ${whereClause}`;
             
             if (orderBy) {
                 query += ` ORDER BY ${orderBy}`;
@@ -206,15 +211,19 @@ class DatabaseManager {
 
     async update(table, data, conditions) {
         try {
-            const setClause = Object.keys(data).map(key => `"${key}" = $${Object.keys(data).indexOf(key) + 1}`).join(', ');
-            const whereClause = Object.keys(conditions).map(key => `"${key}" = $${Object.keys(data).length + Object.keys(conditions).indexOf(key) + 1}`).join(' AND ');
+            const setClause = Object.keys(data).map((key, index) => `"${key}" = $${index + 1}`).join(', ');
+            const whereClause = Object.keys(conditions).map((key, index) => `"${key}" = $${Object.keys(data).length + index + 1}`).join(' AND ');
             
             // Explicitly specify public schema with quoted table names and column names for case sensitivity
             const schemaTable = table.includes('.') ? table : `public."${table}"`;
             const query = `UPDATE ${schemaTable} SET ${setClause} WHERE ${whereClause} RETURNING *`;
             const values = [...Object.values(data), ...Object.values(conditions)];
             
+            logger.debug(`🔧 [UPDATE] Query: ${query}`);
+            logger.debug(`🔧 [UPDATE] Values: ${JSON.stringify(values)}`);
+            
             const result = await this.query(query, values);
+            logger.debug(`🔧 [UPDATE] Result: ${result.rows.length} rows affected`);
             return result.rows;
 
         } catch (error) {

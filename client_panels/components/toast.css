@@ -1,0 +1,97 @@
+/* Toast Positioning CSS - Ensures toasts appear at screen top */
+
+/* Force fixed positioning for toasts */
+.toast-fixed {
+  position: fixed !important;
+  top: 0 !important;
+  z-index: 999999 !important;
+}
+
+/* Ensure toast container is positioned correctly */
+.toast-container {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 999999 !important;
+  pointer-events: none;
+}
+
+/* Individual toast positioning */
+.toast-top-left {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 999999 !important;
+}
+
+.toast-top-center {
+  position: fixed !important;
+  top: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 999999 !important;
+}
+
+.toast-top-right {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  z-index: 999999 !important;
+}
+
+/* Animation keyframes */
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideInFromTop {
+  animation: slideInFromTop 0.3s ease-out;
+}
+
+/* Ensure toasts are above all other elements */
+.toast-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 999998 !important;
+  pointer-events: none;
+}
+
+/* Toast stacking */
+.toast-stack {
+  margin-top: 0;
+}
+
+.toast-stack:nth-child(2) { margin-top: 5rem; }
+.toast-stack:nth-child(3) { margin-top: 10rem; }
+.toast-stack:nth-child(4) { margin-top: 15rem; }
+.toast-stack:nth-child(5) { margin-top: 20rem; }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .toast-top-left,
+  .toast-top-right {
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    min-width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+  }
+  
+  .toast-top-center {
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    transform: none !important;
+    min-width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+  }
+}

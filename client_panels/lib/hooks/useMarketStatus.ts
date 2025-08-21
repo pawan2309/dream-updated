@@ -25,9 +25,6 @@ export function useMarketStatus(matchId: string, marketId: string) {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4001';
-
-  // Fetch market status from API
   const fetchMarketStatus = useCallback(async () => {
     if (!matchId || !marketId) return;
 
@@ -35,6 +32,7 @@ export function useMarketStatus(matchId: string, marketId: string) {
       setLoading(true);
       setError(null);
 
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4001';
       const response = await fetch(`${baseUrl}/api/market/status/${matchId}/${marketId}`, {
         method: 'GET',
         headers: {
@@ -61,7 +59,7 @@ export function useMarketStatus(matchId: string, marketId: string) {
     } finally {
       setLoading(false);
     }
-  }, [matchId, marketId, baseUrl]);
+  }, [matchId, marketId]);
 
   // Subscribe to real-time market updates via WebSocket
   useEffect(() => {

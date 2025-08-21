@@ -119,7 +119,9 @@ class ExternalApiServer {
 
             // Setup socket handlers (if not disabled)
             if (!process.env.DISABLE_SOCKETS) {
+                logger.info('🔌 WebSocket setup enabled, initializing...');
                 this.setupSocketHandlers();
+                logger.info('✅ WebSocket setup completed');
             } else {
                 logger.info('⏭️ Socket handlers disabled by environment variable');
             }
@@ -203,8 +205,14 @@ class ExternalApiServer {
         this.app.use(refreshRoutes);
         this.app.use(adminRawRoutes);
 
-        // Protected bets routes (require authentication)
-        this.app.use('/api/bets', require('./routes/bets'));
+        // Protected bet routes (require authentication)
+        this.app.use('/api/bet', require('./routes/bet'));
+
+        // Protected user routes (require authentication)
+        this.app.use('/api/user', require('./routes/user'));
+
+        // Protected settlement routes (require authentication)
+        this.app.use('/api/settle', require('./routes/settle'));
 
         // Protected matches routes (require authentication)
         this.app.use('/api/matches', require('./routes/matches'));
@@ -239,8 +247,35 @@ class ExternalApiServer {
     }
 
     setupSocketHandlers() {
-        this.io.queues = this.queues;
-        registerSockets(this.io);
+        try {
+            logger.info('🔌 Setting up WebSocket handlers...');
+            
+            // Check if Socket.IO is properly initialized
+            if (!this.io) {
+                logger.error('❌ Socket.IO not initialized - this.io is null');
+                return;
+            }
+            
+            logger.info('✅ Socket.IO instance found, setting up handlers...');
+            
+            // Set queues for socket handlers
+            this.io.queues = this.queues;
+            logger.info('✅ Queues attached to Socket.IO');
+            
+            // Register socket handlers
+            try {
+                registerSockets(this.io);
+                logger.info('✅ Socket handlers registered successfully');
+                logger.info('🎯 WebSocket server is now ready to accept connections');
+            } catch (socketError) {
+                logger.error('❌ Failed to register socket handlers:', socketError);
+                throw socketError;
+            }
+            
+        } catch (error) {
+            logger.error('❌ Failed to setup WebSocket handlers:', error);
+            throw error;
+        }
     }
 
     async startServer() {

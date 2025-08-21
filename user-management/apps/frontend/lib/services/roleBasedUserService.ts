@@ -154,7 +154,7 @@ export async function createUserWithRoleValidation(request: CreateUserRequest): 
           role,
           parentId,
           creditLimit,
-          balance: 0,
+
           isActive: true,
           code,
           reference: reference || null,
@@ -216,7 +216,6 @@ export async function createUserWithRoleValidation(request: CreateUserRequest): 
             collection: 'LIMIT_UPDATE',
             debit: 0,
             credit: creditLimit,
-            balanceAfter: creditLimit,
             type: 'ADJUSTMENT',
             remark: `Credit limit allocation from parent: ${parentUser.name || parentUser.code || parentUser.username}`,
           }
@@ -229,7 +228,6 @@ export async function createUserWithRoleValidation(request: CreateUserRequest): 
             collection: 'LIMIT_UPDATE',
             debit: creditLimit,
             credit: 0,
-            balanceAfter: parentUser.creditLimit - creditLimit,
             type: 'ADJUSTMENT',
             remark: `Credit limit deduction for new user: ${user.name || user.username}`,
           }

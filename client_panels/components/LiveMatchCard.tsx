@@ -185,7 +185,7 @@ export const LiveMatchCard: React.FC<LiveMatchCardProps> = ({
       {isExpanded && (
         <div className="mt-3 pt-3 border-t border-gray-200">
           <div className="text-xs text-gray-500 space-y-1">
-            <p>External ID: {match.externalId || match.id}</p>
+            <p>Match ID: {match.matchId || match.id}</p>
             <p>Game ID: {match.gameId || match.id}</p>
             <p>Title: {match.title || match.matchName}</p>
             <p>Last Update: {new Date(match.lastUpdate).toLocaleString()}</p>

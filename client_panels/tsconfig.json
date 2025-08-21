@@ -23,6 +23,7 @@
       }
     ],
     "paths": {
+
       "@/*": [
         "./*"
       ]
@@ -39,3 +40,18 @@
     "node_modules"
   ]
 }
+      "@/*": ["./*"],
+      "@user-management/*": ["../user-management/apps/frontend/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts", 
+    "**/*.ts", 
+    "**/*.tsx", 
+    ".next/types/**/*.ts",
+    "../user-management/apps/frontend/**/*.ts",
+    "../user-management/apps/frontend/**/*.tsx"
+  ],
+  "exclude": ["node_modules"]
+} 
+

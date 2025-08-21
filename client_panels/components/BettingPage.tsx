@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Bet {
+  matchId: string;
   marketId: string;
   selectionId: string;
   selectionName: string;
@@ -16,19 +17,21 @@ interface Bet {
 interface MarketCardProps {
   market: {
     id: string;
+    marketId: string; // Internal market identifier
     name: string;
     minStake: number;
     maxStake: number;
     status: string;
     description?: string;
+    gtype?: string; // fancy, match_odds, session
     selections: Array<{
       id: string;
       name: string;
       odds: number;
       status: string;
-      type?: 'back' | 'lay'; // Made type optional
-      tier?: number; // Added tier
-      stake?: number; // Added stake
+      type?: 'back' | 'lay';
+      tier?: number;
+      stake?: number;
     }>;
   };
   onAddBet: (market: any, selection: any, type: 'back' | 'lay') => void;
@@ -90,7 +93,7 @@ const MarketCard: React.FC<MarketCardProps> = ({ market, onAddBet, bets }) => {
             : 'bg-pink-25 text-pink-600 hover:bg-pink-50';
 
       const isSelected = bets.some(bet => 
-        bet.marketId === market.id && 
+        bet.marketId === market.marketId && 
         bet.selectionId === selection.id && 
         bet.type === type
       );
@@ -131,6 +134,9 @@ const MarketCard: React.FC<MarketCardProps> = ({ market, onAddBet, bets }) => {
             <p className="text-sm text-gray-600">
               Min: {market.minStake.toLocaleString()} • Max: {market.maxStake.toLocaleString()}
             </p>
+            {market.gtype && (
+              <p className="text-xs text-gray-500 mt-1">Type: {market.gtype}</p>
+            )}
           </div>
           {market.description && (
             <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium">
@@ -252,10 +258,10 @@ const BetSlip: React.FC<BetSlipProps> = ({ bets, onUpdateStake, onRemoveBet }) =
               </div>
 
               <div className="text-sm text-gray-600">
-                                  Potential: {bet.stake > 0 ? (bet.type === 'back' ? 
-                    (bet.stake * bet.odds - bet.stake).toFixed(2) : 
-                    (bet.stake * (bet.odds - 1)).toFixed(2)
-                  ) : '0.00'}
+                Potential: {bet.stake > 0 ? (bet.type === 'back' ? 
+                  (bet.stake * bet.odds - bet.stake).toFixed(2) : 
+                  (bet.stake * (bet.odds - 1)).toFixed(2)
+                ) : '0.00'}
               </div>
             </div>
           ))}
@@ -263,11 +269,11 @@ const BetSlip: React.FC<BetSlipProps> = ({ bets, onUpdateStake, onRemoveBet }) =
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
             <div className="flex justify-between items-center mb-2">
               <span className="font-medium text-gray-900">Total Stake:</span>
-                                <span className="font-bold text-gray-900">{totalStake.toFixed(2)}</span>
+              <span className="font-bold text-gray-900">{totalStake.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center mb-4">
               <span className="font-medium text-gray-900">Potential Winnings:</span>
-                                <span className="font-bold text-green-600">{potentialWinnings.toFixed(2)}</span>
+              <span className="font-bold text-green-600">{potentialWinnings.toFixed(2)}</span>
             </div>
             
             <button

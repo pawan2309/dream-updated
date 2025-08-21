@@ -59,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         match: {
           select: {
             title: true,
-            externalId: true
+            matchId: true
           }
         }
       }

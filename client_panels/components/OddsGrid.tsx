@@ -55,6 +55,21 @@ export default function OddsGrid({ markets, className = '', onOddsClick }: OddsG
            market.status !== 'OPEN';
   };
 
+  const getSuspensionOverlay = (selection: OddsSelection, market: OddsMarket) => {
+    if (!isSelectionSuspended(selection, market)) return null;
+    
+    return (
+      <div className="absolute inset-0 bg-red-500 bg-opacity-90 rounded flex items-center justify-center z-10">
+        <div className="text-center">
+          <span className="text-white text-xs font-bold block">SUSPENDED</span>
+          {selection.gstatus === 'SUSPENDED' && (
+            <span className="text-white text-xs opacity-75 block">API Status</span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className={`space-y-4 ${className}`}>
       {markets.map((market) => (

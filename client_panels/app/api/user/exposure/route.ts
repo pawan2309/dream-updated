@@ -1,64 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/prisma';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 export async function GET(request: NextRequest) {
   try {
     // Get authorization header
     const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({
-        success: false,
-        message: 'No token provided'
-      }, { status: 401 });
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, error: 'Authorization header required' },
+        { status: 401 }
+      );
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    // Forward the request to the backend
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4001';
+    const response = await fetch(`${backendUrl}/api/user/balance`, {
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+      },
+    });
 
-    try {
-      // Verify JWT token
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
-      
-      if (!decoded || !decoded.userId) {
-        return NextResponse.json({
-          success: false,
-          message: 'Invalid token'
-        }, { status: 401 });
-      }
+    const data = await response.json();
 
-      // Fetch current user exposure from database
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: { exposure: true }
-      });
-
-      if (!user) {
-        return NextResponse.json({
-          success: false,
-          message: 'User not found'
-        }, { status: 404 });
-      }
-
+    if (response.ok) {
       return NextResponse.json({
         success: true,
-        exposure: user.exposure,
+        exposure: data.exposure || 0,
         message: 'Exposure fetched successfully'
       });
-
-    } catch (jwtError) {
-      return NextResponse.json({
-        success: false,
-        message: 'Invalid token'
-      }, { status: 401 });
+    } else {
+      return NextResponse.json(
+        { success: false, error: data.message || 'Backend exposure fetch failed' },
+        { status: response.status }
+      );
     }
 
   } catch (error) {
-    console.error('Exposure fetch error:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Internal server error'
-    }, { status: 500 });
+    console.error('Error in exposure API route:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

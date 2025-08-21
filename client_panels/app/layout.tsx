@@ -7,7 +7,7 @@ import 'react-toastify/dist/ReactToastify.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Welcome to 2xbat',
+  title: 'Welcome to 3xbat',
   description: 'Your trusted betting platform',
   icons: {
     icon: '/favicon2xbat.ico',

@@ -1,105 +1,55 @@
--- CreateEnum
-CREATE TYPE "Role" AS ENUM ('OWNER', 'SUB_OWNER', 'SUPER_ADMIN', 'ADMIN', 'SUB', 'MASTER', 'SUPER_AGENT', 'AGENT', 'USER');
+-- AlterEnum
+ALTER TYPE "MatchStatus" ADD VALUE 'COMPLETED';
+ALTER TYPE "MatchStatus" ADD VALUE 'ABANDONED';
+ALTER TYPE "MatchStatus" ADD VALUE 'CANCELED';
+ALTER TYPE "MatchStatus" ADD VALUE 'OPEN';
+ALTER TYPE "MatchStatus" ADD VALUE 'SUSPENDED';
+ALTER TYPE "MatchStatus" ADD VALUE 'SETTLED';
 
--- CreateEnum
-CREATE TYPE "LedgerType" AS ENUM ('DEPOSIT', 'WITHDRAWAL', 'WIN', 'LOSS', 'ADJUSTMENT', 'LIMIT_UPDATE', 'PNL_CREDIT', 'PNL_DEBIT', 'SETTLEMENT');
+-- AlterEnum
+ALTER TYPE "BetStatus" ADD VALUE 'CANCELED';
 
--- CreateEnum
-CREATE TYPE "MatchStatus" AS ENUM ('UPCOMING', 'LIVE', 'CLOSED', 'ABONDED', 'COMPLETED', 'REMOVE', 'CANCEL', 'OPEN');
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "name" TEXT;
+ALTER TABLE "User" ADD COLUMN "zcommission" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN "code" TEXT;
+ALTER TABLE "User" ADD COLUMN "contactno" TEXT;
+ALTER TABLE "User" ADD COLUMN "cshare" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN "icshare" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN "matchcommission" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN "mobileshare" DOUBLE PRECISION NOT NULL DEFAULT 100;
+ALTER TABLE "User" ADD COLUMN "reference" TEXT;
+ALTER TABLE "User" ADD COLUMN "session_commission_type" TEXT NOT NULL DEFAULT 'No Comm';
+ALTER TABLE "User" ADD COLUMN "sessioncommission" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN "share" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN "exposure" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN "casinoStatus" BOOLEAN;
+ALTER TABLE "User" ADD COLUMN "commissionType" TEXT;
+ALTER TABLE "User" ADD COLUMN "matchCommission" DOUBLE PRECISION;
+ALTER TABLE "User" ADD COLUMN "sessionCommission" DOUBLE PRECISION;
 
--- CreateEnum
-CREATE TYPE "BetStatus" AS ENUM ('PENDING', 'WON', 'LOST');
+-- AlterTable
+ALTER TABLE "Ledger" ADD COLUMN "referenceId" TEXT;
+ALTER TABLE "Ledger" ADD COLUMN "transactionType" TEXT;
+ALTER TABLE "Ledger" ADD COLUMN "matchId" TEXT;
+ALTER TABLE "Ledger" ADD COLUMN "sourceUserId" TEXT;
 
--- CreateTable
-CREATE TABLE "User" (
-    "id" TEXT NOT NULL,
-    "username" TEXT NOT NULL,
-    "password" TEXT NOT NULL,
-    "role" "Role" NOT NULL,
-    "parentId" TEXT,
-    "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "name" TEXT,
-    "zcommission" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "code" TEXT,
-    "contactno" TEXT,
-    "cshare" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "icshare" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "matchcommission" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "mobileshare" DOUBLE PRECISION NOT NULL DEFAULT 100,
-    "reference" TEXT,
-    "session_commission_type" TEXT NOT NULL DEFAULT 'No Comm',
-    "sessioncommission" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "share" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "exposure" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "casinoStatus" BOOLEAN,
-    "commissionType" TEXT,
-    "matchCommission" DOUBLE PRECISION,
-    "sessionCommission" DOUBLE PRECISION,
-
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Ledger" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "collection" TEXT,
-    "debit" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "credit" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "balanceAfter" DOUBLE PRECISION NOT NULL,
-    "type" "LedgerType" NOT NULL,
-    "remark" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "referenceId" TEXT,
-    "transactionType" TEXT,
-    "matchId" TEXT,
-    "sourceUserId" TEXT,
-
-    CONSTRAINT "Ledger_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Match" (
-    "id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "externalId" TEXT NOT NULL,
-    "status" "MatchStatus" NOT NULL DEFAULT 'UPCOMING',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "bmarketId" TEXT,
-    "beventId" TEXT,
-    "matchName" TEXT,
-    "tournament" TEXT,
-    "startTime" TIMESTAMP(3),
-    "isLive" BOOLEAN NOT NULL DEFAULT false,
-    "matchType" TEXT,
-    "isCricket" BOOLEAN NOT NULL DEFAULT true,
-    "teams" JSONB,
-    "lastUpdated" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "apiSource" TEXT,
-    "rawData" JSONB,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
-
-    CONSTRAINT "Match_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Bet" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "matchId" TEXT NOT NULL,
-    "odds" DOUBLE PRECISION NOT NULL,
-    "stake" DOUBLE PRECISION NOT NULL,
-    "potentialWin" DOUBLE PRECISION NOT NULL,
-    "status" "BetStatus" NOT NULL DEFAULT 'PENDING',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Bet_pkey" PRIMARY KEY ("id")
-);
+-- AlterTable
+ALTER TABLE "Match" ADD COLUMN "bmarketId" TEXT;
+ALTER TABLE "Match" ADD COLUMN "beventId" TEXT;
+ALTER TABLE "Match" ADD COLUMN "matchName" TEXT;
+ALTER TABLE "Match" ADD COLUMN "tournament" TEXT;
+ALTER TABLE "Match" ADD COLUMN "startTime" TIMESTAMP(3);
+ALTER TABLE "Match" ADD COLUMN "isLive" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Match" ADD COLUMN "matchType" TEXT;
+ALTER TABLE "Match" ADD COLUMN "isCricket" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "Match" ADD COLUMN "teams" JSONB;
+ALTER TABLE "Match" ADD COLUMN "lastUpdated" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "Match" ADD COLUMN "apiSource" TEXT;
+ALTER TABLE "Match" ADD COLUMN "rawData" JSONB;
+ALTER TABLE "Match" ADD COLUMN "isActive" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "Match" ADD COLUMN "isDeleted" BOOLEAN NOT NULL DEFAULT false;
 
 -- CreateTable
 CREATE TABLE "ProfitDistribution" (
@@ -144,13 +94,7 @@ CREATE TABLE "LoginSession" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
-
--- CreateIndex
 CREATE INDEX "Ledger_userId_createdAt_idx" ON "Ledger"("userId", "createdAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Match_externalId_key" ON "Match"("externalId");
 
 -- CreateIndex
 CREATE INDEX "Match_bmarketId_idx" ON "Match"("bmarketId");
@@ -193,18 +137,6 @@ CREATE INDEX "LoginSession_loginAt_idx" ON "LoginSession"("loginAt");
 
 -- CreateIndex
 CREATE INDEX "LoginSession_isActive_idx" ON "LoginSession"("isActive");
-
--- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Ledger" ADD CONSTRAINT "Ledger_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Bet" ADD CONSTRAINT "Bet_matchId_fkey" FOREIGN KEY ("matchId") REFERENCES "Match"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Bet" ADD CONSTRAINT "Bet_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProfitDistribution" ADD CONSTRAINT "ProfitDistribution_betId_fkey" FOREIGN KEY ("betId") REFERENCES "Bet"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

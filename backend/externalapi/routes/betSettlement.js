@@ -8,7 +8,7 @@ const CommissionService = require('../services/commissionService');
 // POST /api/bet-settlement/settle-match - Settle a completed match
 router.post('/settle-match', jwtAuth(), async (req, res) => {
   try {
-    const { matchId, winner, result, resultData } = req.body;
+    const { matchId, winner, result } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -115,13 +115,11 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
             'match'
           );
 
-          // Update user balance (add net winnings after commission)
+          // Update user exposure (reduce by stake amount)
           const user = await database.findOne('User', { id: bet.userId });
-          const newBalance = (user.balance || 0) + commissionResult.netWinnings;
           const newExposure = Math.max(0, (user.exposure || 0) - bet.stake);
 
           await database.update('User', { id: bet.userId }, {
-            balance: newBalance,
             exposure: newExposure,
             updatedAt: new Date()
           });
@@ -142,7 +140,7 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
             collection: 'BET_WIN',
             debit: 0,
             credit: commissionResult.netWinnings,
-            balanceAfter: newBalance,
+
             type: 'BET_WIN',
             remark: `Bet won on ${match.title} - ${bet.selectionName} @ ${bet.odds} (${bet.type}) - Won ${wonAmount}, Commission: ${commissionResult.commissionAmount}`,
             referenceId: bet.id,
@@ -184,7 +182,7 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
             collection: 'BET_LOSS',
             debit: lostAmount,
             credit: 0,
-            balanceAfter: (await database.findOne('User', { id: bet.userId })).balance,
+
             type: 'BET_LOSS',
             remark: `Bet lost on ${match.title} - ${bet.selectionName} @ ${bet.odds} (${bet.type}) - Lost ${lostAmount}`,
             referenceId: bet.id,
@@ -226,7 +224,7 @@ router.post('/settle-match', jwtAuth(), async (req, res) => {
         winner: winner,
         result: result,
         settledAt: new Date(),
-        resultData: resultData || {},
+
         lastUpdated: new Date()
       });
 

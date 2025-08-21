@@ -109,14 +109,13 @@ async function syncMatchesToDatabase(fixtures) {
 
         // Check if match already exists
         const existingMatch = await database.findOne('Match', { 
-          externalId: externalId.toString()
+          matchId: externalId.toString()
         });
 
         if (existingMatch) {
           // Update existing match if needed
           await database.update('Match', { id: existingMatch.id }, {
-            lastUpdated: new Date(),
-            rawData: fixture.raw
+            lastUpdated: new Date()
           });
           continue;
         }
@@ -125,7 +124,7 @@ async function syncMatchesToDatabase(fixtures) {
         const matchData = {
           id: `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           title: fixture.raw.eventName || fixture.raw.title || 'Unknown Match',
-          externalId: externalId.toString(),
+          matchId: externalId.toString(), // Changed from externalId to matchId
           beventId: externalId.toString(),
           status: fixture.raw.status || 'UPCOMING',
           isActive: true,
@@ -134,7 +133,6 @@ async function syncMatchesToDatabase(fixtures) {
           isLive: fixture.raw.isLive || false,
           createdAt: new Date(),
           lastUpdated: new Date(),
-          rawData: fixture.raw
         };
 
         await database.insert('Match', matchData);
