@@ -11,7 +11,7 @@ class RedisManager {
 
     async connect() {
         try {
-            const redisUrl = process.env.REDIS_URL || 'redis://localhost:6380';
+            const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
             
             this.client = new Redis(redisUrl, {
                 retryDelayOnFailover: 100,

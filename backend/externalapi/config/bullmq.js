@@ -4,7 +4,7 @@ const Redis = require('ioredis');
 // Redis connection configuration
 const redisConfig = {
   host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6380,
+  port: process.env.REDIS_PORT || 6379,
   password: process.env.REDIS_PASSWORD || null,
   db: process.env.REDIS_DB || 0,
   maxRetriesPerRequest: null, // Required for BullMQ

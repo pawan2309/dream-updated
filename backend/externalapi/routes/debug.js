@@ -346,7 +346,7 @@ router.get('/test-redis-simple', async (req, res) => {
         // Create a simple Redis connection
         const redis = new Redis({
             host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT, 10) || 6380,
+            port: parseInt(process.env.REDIS_PORT, 10) || 6379,
             password: process.env.REDIS_PASSWORD,
             db: parseInt(process.env.REDIS_DB, 10) || 0,
             lazyConnect: false // Connect immediately

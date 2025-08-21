@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 // Redis connection for BullMQ
 const redisConnection = new Redis({
     host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT, 10) || 6380,
+    port: parseInt(process.env.REDIS_PORT, 10) || 6379,
     password: process.env.REDIS_PASSWORD,
     db: parseInt(process.env.REDIS_DB, 10) || 0,
     retryDelayOnFailover: 100,
@@ -55,7 +55,7 @@ class QueueManager {
             logger.info('🔍 Redis connection status:', redisConnection.status);
             logger.info('🔍 Redis connection config:', {
                 host: process.env.REDIS_HOST || 'localhost',
-                port: parseInt(process.env.REDIS_PORT, 10) || 6380,
+                port: parseInt(process.env.REDIS_PORT, 10) || 6379,
                 db: parseInt(process.env.REDIS_DB, 10) || 0
             });
 
